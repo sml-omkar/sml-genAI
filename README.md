@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI-Bot — Enterprise Teams Chatbot with RAG Pipeline
 
 A production-ready Microsoft Teams chatbot that answers employee questions from uploaded PDF policy documents. Built with Python FastAPI, Ollama (llama3.2:1b), ChromaDB, and PostgreSQL.
@@ -324,3 +325,6 @@ lsof -ti:8000 | xargs kill -9
 ## License
 
 Internal use only — Sanghvi Movers Limited.
+=======
+# sml-genAI
+>>>>>>> 58a970e7aae7bf52978a89fbcb5b38a9a2990786
