@@ -1,0 +1,71 @@
+# =============================================================================
+# AI-Bot Docker Compose
+# For container-based deployment (alternative to direct EC2 hosting)
+# =============================================================================
+
+services:
+  # --- Main Application (FastAPI + Bot + Admin UI) ---
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+      ollama:
+        condition: service_started
+    volumes:
+      - upload_data:/app/data/uploads
+      - chroma_data:/app/data/chroma
+    restart: unless-stopped
+
+  # --- PostgreSQL ---
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: aibot_user
+      POSTGRES_PASSWORD: aibot_pass_2024
+      POSTGRES_DB: aibot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aibot_user -d aibot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # --- ChromaDB ---
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8100:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    restart: unless-stopped
+
+  # --- Ollama (SmolLM 360M) ---
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pre-pull model after start
+    entrypoint: >
+      sh -c "ollama serve &
+             sleep 5 &&
+             ollama pull smollm:360m &&
+             wait"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  chroma_data:
+  ollama_data:
+  upload_data:

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cyprus AI{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="xp-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">C</div>
+                <div class="brand-text">
+                    <strong>Cyprus AI</strong>
+                    <small>Admin Portal</small>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">◈</span> <span>Dashboard</span>
+                </a>
+                <a href="/admin/users" class="{% if active_page == 'users' %}active{% endif %}">
+                    <span class="nav-icon">◎</span> <span>Users</span>
+                </a>
+                <a href="/admin/groups" class="{% if active_page == 'groups' %}active{% endif %}">
+                    <span class="nav-icon">◇</span> <span>Groups</span>
+                </a>
+                <a href="/admin/folders" class="{% if active_page == 'folders' %}active{% endif %}">
+                    <span class="nav-icon">▢</span> <span>Folders</span>
+                </a>
+                <a href="/admin/documents" class="{% if active_page == 'documents' %}active{% endif %}">
+                    <span class="nav-icon">▤</span> <span>Documents</span>
+                </a>
+                <a href="/admin/departments" class="{% if active_page == 'departments' %}active{% endif %}">
+                    <span class="nav-icon">◎</span> <span>Departments</span>
+                </a>
+
+                <div class="nav-divider"></div>
+
+                <a href="/admin/chat" class="{% if active_page == 'chat' %}active{% endif %}">
+                    <span class="nav-icon">▸</span> <span>Chat</span>
+                </a>
+                <a href="/" target="_blank">
+                    <span class="nav-icon">○</span> <span>Public Chat</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div>
+                        <span class="user-role" id="userRole"></span>
+                        <span class="user-email" id="userEmail"></span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Sign Out</button>
+            </div>
+        </aside>
+
+        <main class="xp-main">
+            <header class="xp-main-header">
+                {% block header %}{% endblock %}
+            </header>
+            <div class="xp-main-content animate-in">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user) { window.location.href = '/admin/login'; }
+        else {
+            document.getElementById('userRole').textContent = user.role.replace('_',' ');
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userAvatar').textContent = (user.full_name || user.email)[0].toUpperCase();
+        }
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/admin/login';
+        }
+        function authFetch(url, opts = {}) {
+            return fetch(url, {
+                ...opts,
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                    'Content-Type': 'application/json',
+                    ...(opts.headers || {})
+                }
+            }).then(r => { if (r.status === 401) { logout(); } return r; });
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Groups — Cyprus AI{% endblock %}
+{% block header %}
+<div class="page-header">
+    <h2>Groups</h2>
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='flex'">+ Add Group</button>
+</div>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Group Name</th><th>Users</th><th>Folders</th><th style="text-align:right">Actions</th></tr>
+        </thead>
+        <tbody id="groupsTable"></tbody>
+    </table>
+</div>
+
+<div class="xp-modal" id="addModal">
+    <div class="xp-modal-content" style="width:440px">
+        <div class="xp-modal-header">
+            <h3>Create Group</h3>
+            <button class="xp-button xp-button-sm" onclick="document.getElementById('addModal').style.display='none'">Close</button>
+        </div>
+        <div class="xp-modal-body">
+            <form id="addForm" onsubmit="return addGroup(event)">
+                <div class="form-group" style="margin-bottom:16px">
+                    <label>Group Name</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div id="groupError" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none"></div>
+                <div class="xp-form-actions">
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="xp-modal" id="manageModal">
+    <div class="xp-modal-content" style="width:640px">
+        <div class="xp-modal-header">
+            <h3 id="manageTitle">Manage Group</h3>
+            <button class="xp-button xp-button-sm" onclick="document.getElementById('manageModal').style.display='none'">Close</button>
+        </div>
+        <div class="xp-modal-body">
+            <div class="xp-tabs">
+                <button class="xp-tab active" onclick="switchTab('users',this)">Users</button>
+                <button class="xp-tab" onclick="switchTab('folders',this)">Folders</button>
+            </div>
+            <div id="tabUsers" class="xp-tab-content">
+                <div class="xp-form-row" style="margin-bottom:12px">
+                    <select id="addUserSelect" style="flex:1"></select>
+                    <button class="btn btn-sm btn-primary" onclick="addUserToGroup()">Add</button>
+                </div>
+                <div class="xp-list" id="userList"></div>
+            </div>
+            <div id="tabFolders" class="xp-tab-content" style="display:none">
+                <div class="xp-form-row" style="margin-bottom:12px">
+                    <select id="addFolderSelect" style="flex:1"></select>
+                    <button class="btn btn-sm btn-primary" onclick="addFolderToGroup()">Add</button>
+                </div>
+                <div class="xp-list" id="folderList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentGroupId = null;
+
+    function switchTab(tab, btn) {
+        document.querySelectorAll('.xp-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tabUsers').style.display = tab === 'users' ? 'block' : 'none';
+        document.getElementById('tabFolders').style.display = tab === 'folders' ? 'block' : 'none';
+    }
+
+    async function loadGroups() {
+        const r = await authFetch('/api/groups/');
+        const groups = await r.json();
+        document.getElementById('groupsTable').innerHTML = groups.map(g => `
+            <tr>
+                <td><strong>${g.name}</strong></td>
+                <td>${g.user_count} users</td>
+                <td>${g.folder_count} folders</td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-primary" onclick="openManage('${g.id}','${g.name}')" style="margin-right:6px">Manage</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteGroup('${g.id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function addGroup(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const errEl = document.getElementById('groupError');
+        errEl.style.display = 'none';
+
+        const r = await authFetch('/api/groups/', {
+            method: 'POST',
+            body: JSON.stringify(Object.fromEntries(fd))
+        });
+
+        if (r.ok) {
+            document.getElementById('addModal').style.display = 'none';
+            loadGroups(); e.target.reset();
+        } else {
+            const err = await r.json();
+            errEl.textContent = err.detail || 'Failed to create group';
+            errEl.style.display = 'block';
+        }
+        return false;
+    }
+
+    async function deleteGroup(id) {
+        if (!confirm('Delete group?')) return;
+        const r = await authFetch(`/api/groups/${id}`, { method: 'DELETE' });
+        if (r.ok) loadGroups();
+    }
+
+    async function openManage(groupId, name) {
+        currentGroupId = groupId;
+        document.getElementById('manageTitle').textContent = name;
+        document.getElementById('manageModal').style.display = 'flex';
+        loadGroupUsers(); loadGroupFolders();
+    }
+
+    async function loadGroupUsers() {
+        const r = await authFetch(`/api/groups/${currentGroupId}`);
+        const g = await r.json();
+        document.getElementById('userList').innerHTML = g.users.length ? g.users.map(u => `
+            <div class="xp-list-item">
+                <span>${u.full_name} <span style="color:var(--text-muted);font-size:11px">${u.email}</span></span>
+                <button class="xp-button xp-button-sm xp-button-danger" onclick="removeUser('${u.id}')">Remove</button>
+            </div>
+        `).join('') : '<div class="xp-list-empty">No users assigned</div>';
+
+        const all = await (await authFetch('/api/admin/users')).json();
+        const userList = all.users || all;
+        const assigned = g.users.map(u => u.id);
+        document.getElementById('addUserSelect').innerHTML = userList.filter(u => !assigned.includes(u.id))
+            .map(u => `<option value="${u.id}">${u.full_name} (${u.email})</option>`).join('');
+    }
+
+    async function loadGroupFolders() {
+        const r = await authFetch(`/api/groups/${currentGroupId}`);
+        const g = await r.json();
+        document.getElementById('folderList').innerHTML = g.folders.length ? g.folders.map(f => `
+            <div class="xp-list-item">
+                <span>${f.name} <span class="badge badge-${f.department}" style="margin-left:6px">${f.department.toUpperCase()}</span></span>
+                <button class="xp-button xp-button-sm xp-button-danger" onclick="removeFolder('${f.id}')">Remove</button>
+            </div>
+        `).join('') : '<div class="xp-list-empty">No folders assigned</div>';
+
+        const all = await (await authFetch('/api/folders/')).json();
+        const folderList = all.folders || all;
+        const assigned = g.folders.map(f => f.id);
+        document.getElementById('addFolderSelect').innerHTML = folderList.filter(f => !assigned.includes(f.id))
+            .map(f => `<option value="${f.id}">${f.name} (${f.department.toUpperCase()})</option>`).join('');
+    }
+
+    async function addUserToGroup() {
+        const uid = document.getElementById('addUserSelect').value;
+        if (!uid) return;
+        await authFetch(`/api/groups/${currentGroupId}/users`, { method:'POST', body: JSON.stringify({user_id: uid}) });
+        loadGroupUsers();
+    }
+    async function removeUser(uid) {
+        await authFetch(`/api/groups/${currentGroupId}/users/${uid}`, { method:'DELETE' }); loadGroupUsers();
+    }
+    async function addFolderToGroup() {
+        const fid = document.getElementById('addFolderSelect').value;
+        if (!fid) return;
+        await authFetch(`/api/groups/${currentGroupId}/folders`, { method:'POST', body: JSON.stringify({folder_id: fid}) });
+        loadGroupFolders();
+    }
+    async function removeFolder(fid) {
+        await authFetch(`/api/groups/${currentGroupId}/folders/${fid}`, { method:'DELETE' }); loadGroupFolders();
+    }
+
+    loadGroups();
+</script>
+{% endblock %}

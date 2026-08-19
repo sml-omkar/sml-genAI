@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyprus AI — Login</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #001B3A;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-container {
+            width: 400px;
+        }
+        .login-card {
+            background: #ECE9D8;
+            border: 2px solid #CC0000;
+            border-radius: 8px;
+            box-shadow: 4px 4px 0 #000;
+        }
+        .login-titlebar {
+            background: linear-gradient(180deg, #8B0000 0%, #8B0000 100%);
+            color: white;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .login-body {
+            padding: 30px 25px;
+            text-align: center;
+        }
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            background: #8B0000;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            border: 3px solid #CC0000;
+        }
+        .login-title {
+            font-size: 22px;
+            color: #8B0000;
+            margin: 0 0 5px;
+            font-family: Tahoma, sans-serif;
+        }
+        .login-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin: 0 0 25px;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #333;
+            margin-bottom: 4px;
+            font-family: Tahoma, sans-serif;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 2px solid #7F9DB9;
+            border-radius: 0;
+            font-size: 13px;
+            font-family: Tahoma, sans-serif;
+            box-sizing: border-box;
+            background: white;
+        }
+        .form-group input:focus {
+            border-color: #8B0000;
+            outline: none;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 8px;
+            background: #ECE9D8;
+            border: 2px outset #D4D0C8;
+            font-size: 13px;
+            font-family: Tahoma, sans-serif;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .login-btn:hover {
+            background: #D4D0C8;
+        }
+        .login-btn:active {
+            border-style: inset;
+        }
+        .login-error {
+            color: #C00;
+            font-size: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+        .login-info {
+            margin-top: 20px;
+            padding: 10px;
+            background: #FFF8DC;
+            border: 1px solid #DAA520;
+            font-size: 11px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-titlebar">
+                <span>Cyprus AI — Log On</span>
+                <div>
+                    <span style="cursor:pointer">_</span>
+                    <span style="cursor:pointer;margin-left:4px">□</span>
+                </div>
+            </div>
+            <div class="login-body">
+                <div class="login-logo">C</div>
+                <h1 class="login-title">Cyprus AI Bot</h1>
+                <p class="login-subtitle">Enter your credentials to access the admin panel</p>
+
+                <form id="loginForm" onsubmit="return handleLogin(event)">
+                    <div class="form-group">
+                        <label for="email">Email address:</label>
+                        <input type="email" id="email" placeholder="admin@company.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="login-btn" id="loginBtn">Log On</button>
+                    <div class="login-error" id="loginError"></div>
+                </form>
+
+                <div class="login-info">
+                    <strong>Employees:</strong> Chat with Cyprus directly in Microsoft Teams.<br>
+                    This portal is for administrators only.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // If already logged in, redirect to dashboard
+        if (localStorage.getItem('access_token')) {
+            window.location.href = '/admin/dashboard';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const err = document.getElementById('loginError');
+            btn.textContent = 'Logging on...';
+            btn.disabled = true;
+            err.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('email').value,
+                        password: document.getElementById('password').value,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    err.textContent = data.detail || 'Login failed';
+                    err.style.display = 'block';
+                    return false;
+                }
+
+                // Store token and user info
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                // Redirect based on role
+                const role = data.user.role;
+                if (role === 'super_admin' || role === 'dept_admin') {
+                    window.location.href = '/admin/dashboard';
+                } else {
+                    err.textContent = 'Regular users should use Cyprus AI in Microsoft Teams.';
+                    err.style.display = 'block';
+                }
+            } catch (e) {
+                err.textContent = 'Connection failed. Please try again.';
+                err.style.display = 'block';
+            }
+
+            btn.textContent = 'Log On';
+            btn.disabled = false;
+            return false;
+        }
+    </script>
+</body>
+</html>

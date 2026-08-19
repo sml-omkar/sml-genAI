@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Documents — Cyprus AI{% endblock %}
+{% block header %}
+<div class="page-header">
+    <h2>Documents</h2>
+    <button class="btn btn-primary" onclick="openUploadModal()">+ Upload Document</button>
+</div>
+{% endblock %}
+{% block content %}
+<div id="processingSection" style="display:none; margin-bottom:20px;">
+    <div class="card">
+        <div class="card-header">Pipeline Progress</div>
+        <div id="pipelineProgress"></div>
+        <div id="pipelineLogs" style="margin-top:16px;display:none">
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;font-weight:600">Live Logs</div>
+            <div id="logEntries" style="background:#0a0a0a;color:#00ff41;font-family:'Courier New',monospace;font-size:11px;padding:12px;border-radius:6px;max-height:260px;overflow-y:auto;line-height:1.8"></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Document</th><th>Folder</th><th>Pages</th><th>Chunks</th><th>Status</th><th style="text-align:right">Actions</th></tr>
+        </thead>
+        <tbody id="docsTable"></tbody>
+    </table>
+</div>
+
+<div class="xp-modal" id="uploadModal">
+    <div class="xp-modal-content" style="width:520px">
+        <div class="xp-modal-header">
+            <h3>Upload Document</h3>
+            <button class="xp-button xp-button-sm" onclick="document.getElementById('uploadModal').style.display='none'">Close</button>
+        </div>
+        <div class="xp-modal-body">
+            <form id="uploadForm" onsubmit="return uploadDoc(event)">
+                <div class="form-group" style="margin-bottom:16px">
+                    <label>Select Folder</label>
+                    <select name="folder_id" id="folderSelect" required></select>
+                </div>
+                <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon" style="font-size:28px;color:#e00000">+</div>
+                    <p>Click to select or drag PDF here</p>
+                    <div class="upload-hint">Maximum file size: 50MB</div>
+                </div>
+                <input type="file" id="fileInput" name="file" accept=".pdf" style="display:none" onchange="handleFile(this)">
+                <div id="fileInfo" style="margin-top:12px;font-size:12px;color:var(--text-secondary);display:none"></div>
+                <div id="uploadError" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
+                <div class="xp-form-actions">
+                    <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>Upload & Process</button>
+                    <button type="button" class="btn" onclick="document.getElementById('uploadModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function openUploadModal() {
+        await loadFolders();
+        document.getElementById('uploadModal').style.display = 'flex';
+    }
+
+    async function loadFolders() {
+        const r = await authFetch('/api/folders/');
+        const data = await r.json();
+        const folders = data.folders || data;
+        document.getElementById('folderSelect').innerHTML = folders.map(f =>
+            `<option value="${f.id}">${f.name} (${f.department.toUpperCase()})</option>`
+        ).join('');
+    }
+
+    async function loadDocs() {
+        const r = await authFetch('/api/documents/');
+        const data = await r.json();
+        const docs = data.documents || data;
+        document.getElementById('docsTable').innerHTML = docs.map(d => `
+            <tr>
+                <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.filename}">${d.filename}</td>
+                <td>${d.folder ? d.folder.name : '-'}</td>
+                <td>${d.total_pages || '-'}</td>
+                <td>${d.chunk_count || '-'}</td>
+                <td><span class="badge badge-${d.status}">${d.status}</span></td>
+                <td style="text-align:right">
+                    ${d.status === 'failed' ? `<button class="btn btn-sm btn-primary" onclick="retryDoc('${d.id}')" style="margin-right:6px">Retry</button>` : ''}
+                    <button class="btn btn-sm btn-danger" onclick="deleteDoc('${d.id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+
+        const processing = docs.filter(d => ['uploading','extracting','chunking','embedding','storing'].includes(d.status));
+        const sec = document.getElementById('processingSection');
+        const logsDiv = document.getElementById('pipelineLogs');
+        const logEntries = document.getElementById('logEntries');
+
+        if (processing.length > 0) {
+            sec.style.display = 'block';
+            document.getElementById('pipelineProgress').innerHTML = processing.map(d => {
+                const stages = {uploading:1,extracting:2,chunking:3,embedding:4,storing:5};
+                const current = stages[d.status] || 0;
+                return `
+                <div style="margin-bottom:18px;">
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500">${d.filename}</div>
+                    <div class="pipeline-bar"><div class="fill" style="width:${current*20}%;animation:pulse 1.5s infinite"></div></div>
+                    <div class="pipeline-steps">
+                        <span class="pipeline-step ${current>=1?'done':''}">Upload</span>
+                        <span class="pipeline-step ${current>=2?'done':''} ${current===2?'active':''}">Extract</span>
+                        <span class="pipeline-step ${current>=3?'done':''} ${current===3?'active':''}">Chunk</span>
+                        <span class="pipeline-step ${current>=4?'done':''} ${current===4?'active':''}">Embed</span>
+                        <span class="pipeline-step ${current>=5?'done':''}">Store</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            logsDiv.style.display = 'block';
+            // Fetch logs for the first processing doc
+            for (const d of processing) {
+                try {
+                    const lr = await authFetch('/api/documents/' + d.id + '/logs');
+                    const ld = await lr.json();
+                    if (ld.logs && ld.logs.length) {
+                        logEntries.innerHTML = ld.logs.map(l =>
+                            `<div><span style="color:#888">[${l.time}]</span> <span style="color:#e00000;font-weight:600">${l.stage.toUpperCase()}</span> ${l.message}</div>`
+                        ).join('');
+                        logEntries.scrollTop = logEntries.scrollHeight;
+                    } else {
+                        logEntries.innerHTML = '<div style="color:#888">Waiting for pipeline logs...</div>';
+                    }
+                    break;
+                } catch(e) {}
+            }
+        } else {
+            sec.style.display = 'none';
+        }
+    }
+
+    function handleFile(input) {
+        const f = input.files[0];
+        if (f) {
+            const info = document.getElementById('fileInfo');
+            info.textContent = f.name + ' (' + (f.size/1024/1024).toFixed(1) + ' MB)';
+            info.style.display = 'block';
+            document.getElementById('uploadBtn').disabled = false;
+        }
+    }
+
+    async function uploadDoc(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const folderId = fd.get('folder_id');
+        const btn = document.getElementById('uploadBtn');
+        const errEl = document.getElementById('uploadError');
+        errEl.style.display = 'none';
+        btn.textContent = 'Uploading...'; btn.disabled = true;
+
+        const r = await fetch('/api/documents/upload/' + folderId, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            body: fd
+        });
+
+        if (r.ok) {
+            document.getElementById('uploadModal').style.display = 'none';
+            loadDocs(); e.target.reset();
+            document.getElementById('fileInfo').style.display = 'none';
+        } else {
+            const err = await r.json();
+            errEl.textContent = err.detail || 'Upload failed';
+            errEl.style.display = 'block';
+        }
+        btn.textContent = 'Upload & Process';
+        btn.disabled = false;
+        return false;
+    }
+
+    async function retryDoc(id) { await authFetch('/api/documents/' + id + '/retry', { method:'POST' }); loadDocs(); }
+    async function deleteDoc(id) { if (!confirm('Delete document?')) return; await authFetch('/api/documents/' + id, { method:'DELETE' }); loadDocs(); }
+
+    loadDocs();
+    setInterval(loadDocs, 3000);
+</script>
+{% endblock %}

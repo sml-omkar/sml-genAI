@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Cyprus AI{% endblock %}
+{% block header %}<h2>Dashboard</h2>{% endblock %}
+{% block content %}
+<div class="stat-grid">
+    <div class="stat-card c-blue">
+        <div class="label">Total Users</div>
+        <div class="value" id="statUsers">-</div>
+    </div>
+    <div class="stat-card c-purple">
+        <div class="label">Groups</div>
+        <div class="value" id="statGroups">-</div>
+    </div>
+    <div class="stat-card c-green">
+        <div class="label">Folders</div>
+        <div class="value" id="statFolders">-</div>
+    </div>
+    <div class="stat-card c-orange">
+        <div class="label">Documents</div>
+        <div class="value" id="statDocs">-</div>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <div class="card">
+        <div class="card-header">Quick Guide</div>
+        <div style="font-size:12px; color:var(--text-secondary); line-height:2;">
+            <div style="margin-bottom:6px;"><strong style="color:var(--text);">1.</strong> Create groups and assign folders under <a href="/admin/groups">Groups</a></div>
+            <div style="margin-bottom:6px;"><strong style="color:var(--text);">2.</strong> Assign users to groups under <a href="/admin/groups">Groups</a></div>
+            <div style="margin-bottom:6px;"><strong style="color:var(--text);">3.</strong> Upload documents under <a href="/admin/documents">Documents</a></div>
+            <div><strong style="color:var(--text);">4.</strong> Employees visit <a href="/" target="_blank">Public Chat</a> → login → ask questions filtered by their groups</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">System Info</div>
+        <div style="font-size:12px; color:var(--text-secondary); line-height:2;">
+            <div><strong style="color:var(--text);">LLM:</strong> llama3.2:1b (Ollama)</div>
+            <div><strong style="color:var(--text);">Embeddings:</strong> nomic-embed-text</div>
+            <div><strong style="color:var(--text);">Vector DB:</strong> ChromaDB</div>
+            <div><strong style="color:var(--text);">Database:</strong> PostgreSQL 16</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    authFetch('/api/admin/dashboard').then(r=>r.json()).then(d=>{
+        document.getElementById('statUsers').textContent = d.total_users;
+        document.getElementById('statGroups').textContent = d.total_groups;
+        document.getElementById('statFolders').textContent = d.total_folders;
+        document.getElementById('statDocs').textContent = d.total_documents;
+    });
+</script>
+{% endblock %}

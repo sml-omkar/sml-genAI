@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Folders — Cyprus AI{% endblock %}
+{% block header %}
+<div class="page-header">
+    <h2>Folders</h2>
+    <button class="btn btn-primary" onclick="openAddModal()">+ Add Folder</button>
+</div>
+{% endblock %}
+{% block content %}
+<div class="folder-grid" id="folderGrid"></div>
+
+<div class="xp-modal" id="addModal">
+    <div class="xp-modal-content" style="width:440px">
+        <div class="xp-modal-header">
+            <h3>Create Folder</h3>
+            <button class="xp-button xp-button-sm" onclick="document.getElementById('addModal').style.display='none'">Close</button>
+        </div>
+        <div class="xp-modal-body">
+            <form id="addForm" onsubmit="return addFolder(event)">
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Folder Name</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Department</label>
+                    <select name="department" id="folderDeptSelect"></select>
+                </div>
+                <div class="form-group" style="margin-bottom:16px">
+                    <label>Description</label>
+                    <input type="text" name="description" placeholder="Optional">
+                </div>
+                <div id="folderError" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none"></div>
+                <div class="xp-form-actions">
+                    <button type="submit" class="btn btn-primary">Create Folder</button>
+                    <button type="button" class="btn" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadDepts() {
+        const r = await authFetch('/api/departments/all');
+        const depts = await r.json();
+        document.getElementById('folderDeptSelect').innerHTML = depts.map(d =>
+            `<option value="${d.slug}">${d.name}</option>`
+        ).join('');
+    }
+
+    async function openAddModal() {
+        await loadDepts();
+        document.getElementById('addModal').style.display = 'flex';
+    }
+
+    async function loadFolders() {
+        const r = await authFetch('/api/folders/');
+        const data = await r.json();
+        const folders = data.folders || data;
+        document.getElementById('folderGrid').innerHTML = folders.map(f => `
+            <div class="folder-card">
+                <div class="folder-icon" style="font-size:14px;font-weight:600;color:#e00000">/</div>
+                <h3>${f.name}</h3>
+                <div class="folder-dept"><span class="badge badge-${f.department}">${f.department.toUpperCase()}</span></div>
+                <div class="folder-count">${f.document_count || 0} documents</div>
+                <div style="margin-top:14px">
+                    <button class="btn btn-sm btn-danger" onclick="deleteFolder('${f.id}')">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function addFolder(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd);
+        const errEl = document.getElementById('folderError');
+        errEl.style.display = 'none';
+
+        const r = await authFetch('/api/folders/', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+
+        if (r.ok) {
+            document.getElementById('addModal').style.display = 'none';
+            loadFolders();
+            e.target.reset();
+        } else {
+            const err = await r.json();
+            errEl.textContent = err.detail || 'Failed to create folder';
+            errEl.style.display = 'block';
+        }
+        return false;
+    }
+
+    async function deleteFolder(id) {
+        if (!confirm('Delete folder and all its documents?')) return;
+        const r = await authFetch(`/api/folders/${id}`, { method: 'DELETE' });
+        if (r.ok) loadFolders();
+    }
+
+    loadFolders();
+</script>
+{% endblock %}

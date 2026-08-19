@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Departments — Cyprus AI{% endblock %}
+{% block header %}
+<div class="page-header">
+    <h2>Departments</h2>
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='flex'">+ Add Department</button>
+</div>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Name</th><th>Slug</th><th>Description</th><th>Status</th><th style="text-align:right">Actions</th></tr>
+        </thead>
+        <tbody id="deptTable"></tbody>
+    </table>
+</div>
+
+<div class="xp-modal" id="addModal">
+    <div class="xp-modal-content" style="width:480px">
+        <div class="xp-modal-header">
+            <h3>Create Department</h3>
+            <button class="xp-button xp-button-sm" onclick="document.getElementById('addModal').style.display='none'">Close</button>
+        </div>
+        <div class="xp-modal-body">
+            <form id="addForm" onsubmit="return createDept(event)">
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Name</label>
+                    <input type="text" name="name" id="deptName" required placeholder="e.g. Marketing">
+                </div>
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Slug</label>
+                    <input type="text" name="slug" id="deptSlug" required placeholder="e.g. marketing (auto-generated from name)">
+                </div>
+                <div class="form-group" style="margin-bottom:16px">
+                    <label>Description</label>
+                    <input type="text" name="description" placeholder="Optional description">
+                </div>
+                <div class="xp-form-actions">
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('deptName').addEventListener('input', function() {
+        document.getElementById('deptSlug').value = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    });
+
+    async function loadDepts() {
+        const r = await authFetch('/api/departments/');
+        const depts = await r.json();
+        document.getElementById('deptTable').innerHTML = depts.map(d => `
+            <tr>
+                <td><strong>${d.name}</strong></td>
+                <td><code style="background:var(--bg-hover);padding:2px 8px;border-radius:4px;font-size:12px">${d.slug}</code></td>
+                <td style="color:var(--text-secondary)">${d.description || '-'}</td>
+                <td><span class="badge ${d.is_active ? 'badge-ready' : 'badge-failed'}">${d.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td style="text-align:right">
+                    <button class="btn btn-sm btn-danger" onclick="deleteDept('${d.id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function createDept(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd);
+        const r = await authFetch('/api/departments/', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        if (r.ok) {
+            document.getElementById('addModal').style.display = 'none';
+            loadDepts();
+            e.target.reset();
+        } else {
+            const err = await r.json();
+            alert(err.detail || 'Failed to create department');
+        }
+        return false;
+    }
+
+    async function deleteDept(id) {
+        if (!confirm('Delete department?')) return;
+        await authFetch(`/api/departments/${id}`, { method: 'DELETE' });
+        loadDepts();
+    }
+
+    loadDepts();
+</script>
+{% endblock %}

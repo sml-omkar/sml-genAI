@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyprus AI — SML Policy Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #f8f8f8;
+            color: #1a1a1a;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .cy-header {
+            background: white; border-bottom: 1px solid #e5e5e5;
+            padding: 0 24px; height: 56px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .cy-header-left { display: flex; align-items: center; gap: 12px; }
+        .cy-logo {
+            width: 36px; height: 36px; background: #e00000;
+            border-radius: 8px; display: flex; align-items: center;
+            justify-content: center; color: white; font-size: 16px; font-weight: 700;
+        }
+        .cy-header h1 { font-size: 16px; font-weight: 600; }
+        .cy-header small { font-size: 11px; color: #999; }
+
+        .cy-user-info { display: flex; align-items: center; gap: 12px; }
+        .cy-user-info .user-name { font-size: 13px; text-align: right; font-weight: 500; }
+        .cy-user-info .user-dept { font-size: 10px; color: #999; }
+        .cy-login-btn {
+            background: white; border: 1px solid #e5e5e5;
+            color: #6e6e6e; padding: 7px 16px; border-radius: 8px;
+            cursor: pointer; font-size: 12px; font-family: inherit;
+            font-weight: 500; transition: all 0.15s;
+        }
+        .cy-login-btn:hover { border-color: #e00000; color: #e00000; }
+
+        .cy-chat-container {
+            flex: 1; display: flex; flex-direction: column;
+            max-width: 860px; width: 100%; margin: 0 auto; padding: 0 20px;
+        }
+        .cy-messages {
+            flex: 1; overflow-y: auto; padding: 24px 0;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .cy-msg { display: flex; gap: 12px; max-width: 80%; }
+        .cy-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .cy-msg.bot { align-self: flex-start; }
+        .cy-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; flex-shrink: 0;
+        }
+        .cy-msg.bot .cy-avatar { background: #e00000; color: white; }
+        .cy-msg.user .cy-avatar { background: #e5e5e5; color: #6e6e6e; }
+        .cy-bubble {
+            padding: 12px 16px; border-radius: 12px;
+            font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+        }
+        .cy-msg.bot .cy-bubble {
+            background: white; border: 1px solid #e5e5e5;
+            border-top-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .cy-msg.user .cy-bubble {
+            background: #e00000; color: white; border-top-right-radius: 4px;
+        }
+        .cy-sources { font-size: 10px; color: #999; margin-top: 6px; font-style: italic; }
+        .cy-typing {
+            display: flex; gap: 4px; padding: 12px 16px;
+            background: white; border: 1px solid #e5e5e5;
+            border-radius: 12px; width: fit-content;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .cy-typing span {
+            width: 6px; height: 6px; background: #e00000;
+            border-radius: 50%; animation: bounce 1.2s infinite;
+        }
+        .cy-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .cy-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+        .cy-input-area { padding: 16px 0 24px; }
+        .cy-input-wrapper {
+            display: flex; gap: 8px;
+            background: white; border: 1px solid #e5e5e5;
+            border-radius: 12px; padding: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .cy-input-wrapper input {
+            flex: 1; background: transparent; border: none;
+            color: #1a1a1a; padding: 8px 12px; font-size: 13px;
+            font-family: inherit; outline: none;
+        }
+        .cy-input-wrapper input::placeholder { color: #999; }
+        .cy-send-btn {
+            background: #e00000; color: white; border: none;
+            padding: 10px 24px; border-radius: 8px; cursor: pointer;
+            font-size: 13px; font-weight: 600; font-family: inherit;
+            transition: all 0.15s;
+        }
+        .cy-send-btn:hover { background: #c50000; box-shadow: 0 4px 16px rgba(224,0,0,0.2); }
+        .cy-send-btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
+        .cy-footer { text-align: center; padding: 12px; font-size: 10px; color: #ccc; }
+
+        .cy-modal-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .cy-modal-overlay.active { display: flex; }
+        .cy-modal {
+            background: white; border: 1px solid #e5e5e5;
+            border-radius: 12px; width: 400px; padding: 32px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        .cy-modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+        .cy-modal .subtitle { font-size: 12px; color: #999; margin-bottom: 24px; }
+        .cy-modal .form-group { margin-bottom: 16px; }
+        .cy-modal label { display: block; font-size: 12px; color: #6e6e6e; margin-bottom: 6px; font-weight: 500; }
+        .cy-modal input[type="email"],
+        .cy-modal input[type="password"] {
+            width: 100%; padding: 10px 14px;
+            background: #fafafa; border: 1px solid #e5e5e5;
+            border-radius: 8px; color: #1a1a1a; font-size: 13px;
+            font-family: inherit; outline: none; transition: border-color 0.15s;
+        }
+        .cy-modal input:focus { border-color: #e00000; box-shadow: 0 0 0 3px rgba(224,0,0,0.06); }
+        .cy-modal .login-btn {
+            width: 100%; padding: 11px; background: #e00000;
+            color: white; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            font-family: inherit; transition: all 0.15s; margin-top: 4px;
+        }
+        .cy-modal .login-btn:hover { background: #c50000; box-shadow: 0 4px 16px rgba(224,0,0,0.2); }
+        .cy-modal .login-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .cy-modal .error-msg { color: #e00000; font-size: 12px; margin-top: 14px; display: none; text-align: center; }
+        .cy-modal .cancel-btn {
+            width: 100%; padding: 8px; background: white;
+            color: #999; border: 1px solid #e5e5e5;
+            border-radius: 8px; font-size: 12px; cursor: pointer;
+            margin-top: 10px; font-family: inherit; transition: all 0.15s;
+        }
+        .cy-modal .cancel-btn:hover { border-color: #999; color: #6e6e6e; }
+    </style>
+</head>
+<body>
+
+    <div class="cy-header">
+        <div class="cy-header-left">
+            <div class="cy-logo">C</div>
+            <div>
+                <h1>Cyprus AI</h1>
+                <small>SML Policy Assistant</small>
+            </div>
+        </div>
+        <div class="cy-user-info" id="headerUser" style="display:none">
+            <div>
+                <div class="user-name" id="headerName"></div>
+                <div class="user-dept" id="headerDept"></div>
+            </div>
+            <button class="cy-login-btn" onclick="logoutUser()">Sign Out</button>
+        </div>
+        <div id="headerLoginBtn">
+            <button class="cy-login-btn" onclick="showLogin()">Admin Login</button>
+        </div>
+    </div>
+
+    <div class="cy-chat-container">
+        <div class="cy-messages" id="chatMessages">
+            <div class="cy-msg bot">
+                <div class="cy-avatar">C</div>
+                <div>
+                    <div class="cy-bubble">Hello! I'm Cyprus AI, your company policy assistant. Ask me anything about company policies, IT guidelines, HR procedures, or infrastructure docs.
+
+To get started, just type your question below. You'll be asked to log in when you send your first message.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cy-input-area">
+            <div class="cy-input-wrapper">
+                <input type="text" id="chatInput" placeholder="Ask about company policies..."
+                       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();handleSend()}">
+                <button class="cy-send-btn" id="sendBtn" onclick="handleSend()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="cy-footer">Powered by Sanghvi Movers LTD</div>
+
+    <div class="cy-modal-overlay" id="loginModal">
+        <div class="cy-modal">
+            <h2>Sign In</h2>
+            <p class="subtitle">Login to chat with Cyprus AI</p>
+            <form onsubmit="return handleLogin(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" placeholder="your@email.com" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                </div>
+                <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+                <div class="error-msg" id="loginError"></div>
+                <button type="button" class="cancel-btn" onclick="hideLogin()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let conversationId = null;
+        let pendingMessage = null;
+
+        function getUser() { try { return JSON.parse(localStorage.getItem('cyprus_user')); } catch { return null; } }
+        function getToken() { return localStorage.getItem('cyprus_token'); }
+
+        function setUser(token, user) {
+            localStorage.setItem('cyprus_token', token);
+            localStorage.setItem('cyprus_user', JSON.stringify(user));
+            currentUser = user; updateHeader();
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('cyprus_token');
+            localStorage.removeItem('cyprus_user');
+            currentUser = null; conversationId = null;
+            updateHeader();
+            addBotMessage("You've been signed out. Ask me anything and you'll be prompted to log in again.");
+        }
+
+        function updateHeader() {
+            const u = currentUser || getUser();
+            if (u) {
+                currentUser = u;
+                document.getElementById('headerUser').style.display = 'flex';
+                document.getElementById('headerLoginBtn').style.display = 'none';
+                document.getElementById('headerName').textContent = u.full_name || u.email;
+                document.getElementById('headerDept').textContent = u.department.toUpperCase() + ' / ' + u.role.replace('_',' ');
+            } else {
+                document.getElementById('headerUser').style.display = 'none';
+                document.getElementById('headerLoginBtn').style.display = 'block';
+            }
+        }
+
+        function showLogin() { document.getElementById('loginModal').classList.add('active'); document.getElementById('loginEmail').focus(); }
+        function hideLogin() {
+            document.getElementById('loginModal').classList.remove('active');
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const err = document.getElementById('loginError');
+            btn.textContent = 'Signing in...'; btn.disabled = true; err.style.display = 'none';
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }),
+                });
+                const data = await res.json();
+                if (!res.ok) { err.textContent = data.detail || 'Login failed'; err.style.display = 'block'; return false; }
+                setUser(data.access_token, data.user); hideLogin();
+                if (pendingMessage) { sendMessage(pendingMessage); pendingMessage = null; }
+            } catch(ex) { err.textContent = 'Connection failed.'; err.style.display = 'block'; }
+            btn.textContent = 'Sign In'; btn.disabled = false;
+            return false;
+        }
+
+        function handleSend() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim(); if (!msg) return; input.value = '';
+            if (!getToken()) { pendingMessage = msg; addUserMessage(msg); showLogin(); return; }
+            sendMessage(msg);
+        }
+
+        async function sendMessage(msg) {
+            addUserMessage(msg); showTyping();
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg, conversation_id: conversationId }),
+                });
+                hideTyping();
+                if (res.status === 401 || res.status === 403) { addBotMessage("Session expired. Please log in again."); logoutUser(); return; }
+                const data = await res.json(); conversationId = data.conversation_id;
+                addBotMessage(data.answer, data.sources);
+            } catch(e) { hideTyping(); addBotMessage("Sorry, I couldn't connect to the server. Please try again."); }
+        }
+
+        function addUserMessage(text) {
+            const c = document.getElementById('chatMessages');
+            const d = document.createElement('div'); d.className = 'cy-msg user';
+            d.innerHTML = `<div class="cy-avatar">${(currentUser?.full_name||'U')[0]}</div><div><div class="cy-bubble">${esc(text)}</div></div>`;
+            c.appendChild(d); c.scrollTop = c.scrollHeight;
+        }
+
+        function addBotMessage(text, sources) {
+            const c = document.getElementById('chatMessages');
+            const d = document.createElement('div'); d.className = 'cy-msg bot';
+            let h = '<div class="cy-avatar">C</div><div><div class="cy-bubble">' + esc(text) + '</div>';
+            if (sources && sources.length) {
+                const names = sources.map(s => s.document_name || s.filename || (typeof s === 'string' ? s : ''));
+                h += '<div class="cy-sources">Sources: ' + names.filter(Boolean).join(', ') + '</div>';
+            }
+            h += '</div>'; d.innerHTML = h; c.appendChild(d); c.scrollTop = c.scrollHeight;
+        }
+
+        function showTyping() {
+            const c = document.getElementById('chatMessages');
+            const d = document.createElement('div'); d.className = 'cy-msg bot'; d.id = 'typingIndicator';
+            d.innerHTML = '<div class="cy-avatar">C</div><div class="cy-typing"><span></span><span></span><span></span></div>';
+            c.appendChild(d); c.scrollTop = c.scrollHeight; document.getElementById('sendBtn').disabled = true;
+        }
+        function hideTyping() { const e = document.getElementById('typingIndicator'); if (e) e.remove(); document.getElementById('sendBtn').disabled = false; }
+        function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+        updateHeader();
+    </script>
+</body>
+</html>
