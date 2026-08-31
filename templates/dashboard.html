@@ -38,18 +38,17 @@
 
 <div style="display:grid; grid-template-columns: 1.35fr 0.85fr; gap:14px; margin-bottom:14px;">
     <div class="card">
-        <div class="card-header">Total Token Usage — By User <small>All-time distribution • prompt + completion</small> <span id="totalTokensLabelTop" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px;"></span></div>
-        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 6px; position:relative;">
-            <canvas id="totalLineChart" height="220" style="width:100%; display:block;"></canvas>
-            <div id="totalLineEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
+        <div class="card-header" style="flex-wrap:wrap; gap:10px;">Total Token Usage — By Month <small>Daily bars • today at far right</small> <div style="display:flex; gap:8px; align-items:center; margin-left:auto;"><select id="monthSelect" style="padding:6px 10px; border-radius:8px; background:var(--bg-input); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:inherit; min-width:130px;"></select><select id="periodSelect" style="padding:6px 10px; border-radius:8px; background:var(--bg-input); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:inherit;"><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">This month</option></select></div><span id="totalTokensLabel" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px;"></span></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 10px; position:relative;">
+            <canvas id="userChart" height="220" style="width:100%; display:block;"></canvas>
+            <div id="userChartEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
                 <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No usage yet — line appears after users chat.
             </div>
         </div>
         <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); align-items:center;">
-            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent); display:inline-block;"></span> Total</span>
-            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--blue); display:inline-block;"></span> Prompt</span>
-            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--purple); display:inline-block;"></span> Completion</span>
-            <span style="margin-left:auto; color:var(--text-faint);" class="help">Hover points for exact tokens</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:14px;height:10px;background:var(--accent); display:inline-block; border-radius:3px;"></span> Total tokens per day</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;background:#ff2d2d; display:inline-block; border-radius:3px; border:1px solid #ff5252;"></span> Today (rightmost)</span>
+            <span style="margin-left:auto; color:var(--text-faint);" class="help">Daily • today at far right • dates below</span>
         </div>
     </div>
     <div class="card">
@@ -98,10 +97,11 @@
         </div>
     </div>
     <div style="margin-top:6px;">
-        <div class="card-header" style="border:none; padding-bottom:8px; margin-bottom:0;">Tokens per Day <small>Last 14 days</small></div>
+        <div class="card-header" style="border:none; padding-bottom:8px; margin-bottom:0;">Daily Token Usage — Total <small>Today at right • previous days to left</small></div>
         <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px;">
             <canvas id="usageChart" height="140" style="width:100%;"></canvas>
         </div>
+        <div class="help" style="margin-top:6px; text-align:center;">X-axis: daily dates (MM-DD) • Today is the rightmost point/bar</div>
     </div>
 </div>
 
@@ -144,6 +144,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/chart.js"></script>
 <script>
     function fmt(n) { if (n===null||n===undefined) return '0'; return Number(n).toLocaleString(); }
 
@@ -181,163 +182,100 @@
         } catch(e) { /* silent */ }
     }
 
-    let _totalLineTip = null;
-    let _totalLinePoints = [];
+    let _monthlyChart = null;
+    let _monthlyCache = null;
 
-    function drawTotalLineChart(users) {
-        const canvas = document.getElementById('totalLineChart');
-        const empty = document.getElementById('totalLineEmpty');
-        const label = document.getElementById('totalTokensLabelTop');
+    function populateMonthSelect() {
+        const sel = document.getElementById('monthSelect');
+        if (!sel || sel.options.length) return;
+        const now = new Date();
+        for (let i=0;i<6;i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+            const label = d.toLocaleString('en-US', {month:'short', year:'numeric'});
+            const opt = document.createElement('option');
+            opt.value = val; opt.textContent = label;
+            sel.appendChild(opt);
+        }
+        sel.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    }
+
+    function drawUserChart(series) {
+        const canvas = document.getElementById('userChart');
+        const empty = document.getElementById('userChartEmpty');
+        const label = document.getElementById('totalTokensLabel');
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const css = getComputedStyle(document.documentElement);
-        const accent = css.getPropertyValue('--accent').trim() || '#ff2d2d';
-        const blue = css.getPropertyValue('--blue').trim() || '#38bdf8';
-        const purple = css.getPropertyValue('--purple').trim() || '#a78bfa';
-        const muted = css.getPropertyValue('--text-muted').trim() || '#70707a';
-        const text = css.getPropertyValue('--text').trim() || '#f2f2f5';
-        const border = css.getPropertyValue('--border').trim() || '#2a2a33';
-
-        const total = users.reduce((s,u)=> s + (u.total_tokens||0), 0);
+        const total = series.reduce((s,d)=> s + (d.total_tokens||0), 0);
         if (label) label.textContent = total ? `Σ ${fmt(total)} tokens` : '';
-
-        if (!users || users.length === 0) {
+        if (!series || series.length === 0) {
             if (empty) empty.style.display = 'grid';
-            ctx.clearRect(0,0,canvas.width, canvas.height);
-            _totalLinePoints = [];
+            if (_monthlyChart) { _monthlyChart.destroy(); _monthlyChart = null; }
             return;
         }
         if (empty) empty.style.display = 'none';
-
-        const top = users.slice(0, 10);
-        const max = Math.max(1, ...top.map(u=> Math.max(u.total_tokens, u.prompt_tokens, u.completion_tokens)));
-
-        const dpr = window.devicePixelRatio || 1;
-        const cssW = canvas.clientWidth || 600;
-        const cssH = 220;
-        canvas.style.height = cssH + 'px';
-        canvas.width = cssW * dpr;
-        canvas.height = cssH * dpr;
-        ctx.setTransform(dpr,0,0,dpr,0,0);
-        ctx.clearRect(0,0,cssW, cssH);
-
-        const padL = 44, padR = 16, padT = 14, padB = 28;
-        const plotW = cssW - padL - padR;
-        const plotH = cssH - padT - padB;
-        const n = top.length;
-        const stepX = n > 1 ? plotW / (n - 1) : plotW;
-
-        // Grid + Y labels
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-        ctx.lineWidth = 1;
-        for (let i=0;i<=4;i++) {
-            const y = padT + (plotH * i/4);
-            ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+plotW, y); ctx.stroke();
-            const val = Math.round(max - (max * i/4));
-            ctx.fillStyle = muted;
-            ctx.font = '10px JetBrains Mono, monospace';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(fmt(val), padL - 8, y);
-        }
-
-        // Helper to get points
-        function pts(key) {
-            return top.map((u,i)=> {
-                const x = padL + i * stepX;
-                const y = padT + plotH - ( (u[key]||0) / max ) * plotH;
-                return {x,y,u};
-            });
-        }
-        const totalPts = pts('total_tokens');
-        const promptPts = pts('prompt_tokens');
-        const compPts = pts('completion_tokens');
-
-        // Fill under total
-        ctx.fillStyle = 'rgba(255,45,45,0.08)';
-        ctx.beginPath();
-        ctx.moveTo(totalPts[0].x, padT + plotH);
-        totalPts.forEach(p=> ctx.lineTo(p.x, p.y));
-        ctx.lineTo(totalPts[totalPts.length-1].x, padT + plotH);
-        ctx.closePath(); ctx.fill();
-
-        // Draw lines
-        function drawLine(points, color, width, dash) {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            if (dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
-            ctx.beginPath();
-            // smooth cubic
-            points.forEach((p,i)=> {
-                if (i===0) ctx.moveTo(p.x, p.y);
-                else {
-                    const prev = points[i-1];
-                    const cx = (prev.x + p.x)/2;
-                    ctx.bezierCurveTo(cx, prev.y, cx, p.y, p.x, p.y);
-                }
-            });
-            ctx.stroke();
-            ctx.setLineDash([]);
-            // dots
-            points.forEach(p=>{
-                ctx.fillStyle = color;
-                ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#121216';
-                ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, Math.PI*2); ctx.fill();
-            });
-        }
-        drawLine(promptPts, blue, 1.8, [4,4]);
-        drawLine(compPts, purple, 1.8, [4,4]);
-        drawLine(totalPts, accent, 2.4, null);
-
-        // X labels (names)
-        ctx.fillStyle = muted;
-        ctx.font = '10px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        top.forEach((u,i)=> {
-            const x = padL + i*stepX;
-            const name = (u.full_name || u.email || '').split(' ')[0];
-            const short = name.length > 10 ? name.slice(0,9)+'…' : name;
-            ctx.fillText(short, x, padT + plotH + 8);
+        const labels = series.map((s,i)=> {
+            const base = s.date ? s.date.slice(5) : '';
+            return i === series.length - 1 ? base + ' • Today' : base;
         });
-
-        // Store points for hover
-        _totalLinePoints = totalPts.map((p,i)=> ({x:p.x, y:p.y, u: top[i]}));
-
-        if (!canvas._tipBound) {
-            canvas._tipBound = true;
-            if (!_totalLineTip) {
-                _totalLineTip = document.createElement('div');
-                _totalLineTip.style.cssText = 'position:fixed; pointer-events:none; background:#1e1e26; color:var(--text); border:1px solid var(--border); border-left:3px solid var(--accent); padding:8px 10px; border-radius:10px; font-size:11px; line-height:1.5; box-shadow:var(--shadow-lg); display:none; z-index:20; max-width:260px;';
-                document.body.appendChild(_totalLineTip);
-            }
-            canvas.addEventListener('mousemove', (e)=>{
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                // find nearest point by x
-                let best = null, bestDx = Infinity;
-                _totalLinePoints.forEach(p=>{
-                    const dx = Math.abs(p.x - x);
-                    const dy = Math.abs(p.y - y);
-                    if (dx < 18 && dy < 28 && dx < bestDx) { best = p; bestDx = dx; }
-                });
-                if (best) {
-                    _totalLineTip.innerHTML = `<div style="font-weight:700;">${best.u.full_name || best.u.email}</div><div style="color:var(--text-muted);">${best.u.email} • ${best.u.department?.toUpperCase()}</div><div style="margin-top:4px;">Total: <strong style="color:var(--accent);">${fmt(best.u.total_tokens)}</strong> &nbsp; Prompt: <span style="color:${blue};">${fmt(best.u.prompt_tokens)}</span> &nbsp; Completion: <span style="color:${purple};">${fmt(best.u.completion_tokens)}</span><br>Questions: ${fmt(best.u.question_count)}</div>`;
-                    _totalLineTip.style.left = (e.clientX + 12) + 'px';
-                    _totalLineTip.style.top = (e.clientY - 14) + 'px';
-                    _totalLineTip.style.display = 'block';
-                    canvas.style.cursor = 'pointer';
-                } else {
-                    _totalLineTip.style.display = 'none';
-                    canvas.style.cursor = 'default';
+        const totalData = series.map(s=> s.total_tokens||0);
+        const promptData = series.map(s=> s.prompt_tokens||0);
+        const compData = series.map(s=> s.completion_tokens||0);
+        const isTodayIdx = (idx) => idx === series.length - 1;
+        const ctx = canvas.getContext('2d');
+        if (_monthlyChart) _monthlyChart.destroy();
+        // Single bar per day for Total - today highlighted
+        const bgTotal = totalData.map((_,i)=> isTodayIdx(i) ? '#ff2d2d' : 'rgba(255,45,45,0.65)');
+        const borderTotal = totalData.map((_,i)=> isTodayIdx(i) ? '#ff5252' : 'rgba(255,45,45,0.9)');
+        _monthlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Tokens',
+                        data: totalData,
+                        backgroundColor: bgTotal,
+                        borderColor: borderTotal,
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        barPercentage: 0.75,
+                        categoryPercentage: 0.85,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e1e26',
+                        titleColor: '#f2f2f5',
+                        bodyColor: '#9b9ba5',
+                        borderColor: '#2a2a33',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true,
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
+                        ticks: { color: '#70707a', font: { size: 10, family: 'Inter' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+                        border: { display: false }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
+                        ticks: { color: '#70707a', font: { size: 10, family: 'JetBrains Mono' }, callback: function(v){ return fmt(v); } },
+                        border: { display: false },
+                        beginAtZero: true
+                    }
                 }
-            });
-            canvas.addEventListener('mouseleave', ()=> { if(_totalLineTip) _totalLineTip.style.display='none'; });
-            window.addEventListener('resize', ()=> { if(_totalLinePoints.length) drawTotalLineChart(users.slice(0,10)); });
-        }
+            }
+        });
+        _monthlyCache = series;
     }
 
     async function loadUsage() {
@@ -350,7 +288,6 @@
         const tbody = document.getElementById('usageTable');
         if (!d.users || d.users.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No token usage recorded yet. Usage appears after users chat.</div></td></tr>';
-            drawTotalLineChart([]);
             return;
         }
         tbody.innerHTML = d.users.map(u => `
@@ -366,7 +303,30 @@
                 <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(u.total_tokens)}</td>
             </tr>
         `).join('');
-        drawTotalLineChart(d.users);
+    }
+
+    async function loadMonthlyChart() {
+        const monthSel = document.getElementById('monthSelect');
+        const periodSel = document.getElementById('periodSelect');
+        if (!monthSel) return;
+        populateMonthSelect();
+        const month = monthSel.value;
+        const period = periodSel ? periodSel.value : '7';
+        let url = '';
+        if (period === '30' && month) {
+            url = `/api/admin/usage/timeseries?month=${month}`;
+        } else {
+            const days = parseInt(period,10) || 7;
+            url = `/api/admin/usage/timeseries?days=${days}`;
+        }
+        try {
+            const r = await authFetch(url);
+            const d = await r.json();
+            if (d.series) {
+                _monthlyCache = d.series;
+                drawUserChart(d.series);
+            }
+        } catch(e) { console.error(e); }
     }
 
     function drawChart(series) {
@@ -383,18 +343,42 @@
         const data = series.map(p => p.total_tokens);
         const max = Math.max(1, ...data);
         const bw = w / data.length; const pad = 4;
+        const todayIdx = data.length - 1;
         for (let i=0;i<data.length;i++) {
             const bh = (data[i]/max)*(h-28);
             const x = i*bw + pad; const y = h-16-bh;
+            const isToday = i === todayIdx;
             const grd = ctx.createLinearGradient(0,y,0,h-16);
-            grd.addColorStop(0, accent); grd.addColorStop(1, accent+'55');
+            if (isToday) {
+                grd.addColorStop(0, accent); grd.addColorStop(1, '#ff7a7a');
+                ctx.shadowColor = 'rgba(255,45,45,0.35)'; ctx.shadowBlur = 8;
+            } else {
+                grd.addColorStop(0, accent+'CC'); grd.addColorStop(1, accent+'33');
+                ctx.shadowBlur = 0;
+            }
             ctx.fillStyle = grd;
             ctx.beginPath();
             if (ctx.roundRect) ctx.roundRect(x,y,bw-pad*2,bh,4); else { ctx.rect(x,y,bw-pad*2,bh); }
             ctx.fill();
+            ctx.shadowBlur = 0;
+            // Today marker dot on top of bar
+            if (isToday && data[i] > 0) {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(x + (bw-pad*2)/2, y - 4, 3, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = accent;
+                ctx.beginPath(); ctx.arc(x + (bw-pad*2)/2, y - 4, 1.8, 0, Math.PI*2); ctx.fill();
+            }
         }
-        ctx.fillStyle = muted; ctx.font='10px Inter, sans-serif'; ctx.textAlign='center';
-        for (let i=0;i<data.length;i+=2) ctx.fillText(series[i].date.slice(5), i*bw + bw/2, h-2);
+        ctx.textAlign='center';
+        for (let i=0;i<data.length;i++) {
+            const isToday = i === todayIdx;
+            const isEven = i % 2 === 0;
+            if (!isEven && !isToday) continue;
+            ctx.fillStyle = isToday ? accent : muted;
+            ctx.font = isToday ? '700 10px Inter, sans-serif' : '10px Inter, sans-serif';
+            const label = series[i].date.slice(5) + (isToday ? ' • Today' : '');
+            ctx.fillText(label, i*bw + bw/2, h-2);
+        }
         ctx.fillStyle = accent; ctx.font='bold 11px Inter, sans-serif';
         const mi = data.indexOf(max);
         if (max>0) ctx.fillText(fmt(max), mi*bw + bw/2, Math.max(10, h-16-(data[mi]/max)*(h-28)-6));
@@ -407,5 +391,10 @@
     }
 
     loadOverview(); loadUsage(); loadTimeseries(); loadRBAC();
+    // Monthly chart (top) - by month with weekly lines
+    populateMonthSelect();
+    loadMonthlyChart();
+    document.getElementById('monthSelect')?.addEventListener('change', loadMonthlyChart);
+    document.getElementById('periodSelect')?.addEventListener('change', loadMonthlyChart);
 </script>
 {% endblock %}

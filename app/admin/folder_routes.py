@@ -145,17 +145,46 @@ async def delete_folder(
     if not await validate_folder_access(current_user, folder, db):
         raise HTTPException(status_code=403, detail="Access denied.")
 
-    doc_result = await db.execute(select(Document.id, Document.filename).where(Document.folder_id == folder_id))
+    doc_result = await db.execute(select(Document.id, Document.filename, Document.stored_path).where(Document.folder_id == folder_id))
     docs = doc_result.all()
     doc_ids = [str(row[0]) for row in docs]
     doc_names = [row[1] for row in docs]
+    stored_paths = [row[2] for row in docs]
 
     if doc_ids:
+        # Delete chunks + EthosAI memory notes from ChromaDB (both share document_id)
         try:
             from app.rag.vectorstore import delete_documents_from_vectordb
             await delete_documents_from_vectordb(doc_ids, doc_names)
         except Exception as e:
             print(f"[WARNING] ChromaDB cleanup failed: {e}")
 
+        # Delete EthosAI global policy memories (DocumentMemory) for all docs in folder
+        # This is the EthosAI brain, not per-user conversation memory
+        try:
+            from app.models.document_memory import DocumentMemory
+            from sqlalchemy import delete as sa_delete
+            from uuid import UUID as UUUID
+            uuid_ids = [UUUID(d) for d in doc_ids]
+            await db.execute(sa_delete(DocumentMemory).where(DocumentMemory.document_id.in_(uuid_ids)))
+        except Exception as e:
+            print(f"[WARNING] DocumentMemory cleanup failed: {e}")
+
+        # Invalidate cache for this department
+        try:
+            from app.cache.service import cache_invalidate_department
+            cache_invalidate_department(folder.department)
+        except Exception:
+            pass
+
+        # Remove files from disk for each document
+        import os as _os
+        for p in stored_paths:
+            try:
+                if p and _os.path.exists(p):
+                    _os.remove(p)
+            except Exception as e:
+                print(f"[WARNING] Failed to remove file {p}: {e}")
+
     await db.delete(folder)
-    return {"message": f"Folder '{folder.name}' and all its documents deleted."}
+    return {"message": f"Folder '{folder.name}' and all its documents deleted. Chunks, embeddings and EthosAI memories removed."}

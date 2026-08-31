@@ -45,9 +45,22 @@
     async function loadDepts() {
         const r = await authFetch('/api/departments/all');
         const depts = await r.json();
-        document.getElementById('folderDeptSelect').innerHTML = depts.map(d =>
-            `<option value="${d.slug}">${d.name}</option>`
-        ).join('');
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        // Dept admins can only create folders in their own department
+        let filtered = depts;
+        if (u.role === 'dept_admin' && u.department) {
+            filtered = depts.filter(d => d.slug === u.department);
+        }
+        const sel = document.getElementById('folderDeptSelect');
+        sel.innerHTML = filtered.map(d => `<option value="${d.slug}">${d.name}</option>`).join('');
+        // If dept admin, lock selection to their dept and show hint
+        if (u.role === 'dept_admin') {
+            sel.disabled = filtered.length === 1;
+            if (filtered.length === 1) sel.title = `Dept admins can only create folders in ${filtered[0].name}`;
+        } else {
+            sel.disabled = false;
+            sel.title = '';
+        }
     }
 
     async function openAddModal() {

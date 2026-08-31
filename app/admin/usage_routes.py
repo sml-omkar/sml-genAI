@@ -108,11 +108,63 @@ async def usage_timeseries(
     current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
     days: int = Query(default=14, ge=1, le=90),
+    month: str = Query(default=None, description="YYYY-MM to fetch that calendar month (overrides days)"),
 ):
     """
     Daily token usage over the last N days, for charting.
     Returns one entry per day with prompt/completion/total tokens and request count.
+    If month=YYYY-MM is given, returns that calendar month's daily data.
     """
+    import calendar as _cal
+
+    if month:
+        try:
+            y, m = map(int, month.split("-"))
+            _, last = _cal.monthrange(y, m)
+            since = datetime(y, m, 1)
+            days_in_month = last
+            # Use month's range instead of days param
+            until = datetime(y, m, last, 23, 59, 59, 999999)
+        except Exception:
+            from fastapi import HTTPException as _HTTP
+            raise _HTTP(status_code=400, detail="Invalid month format, use YYYY-MM")
+        # Build query for that month range
+        daily = (
+            select(
+                func.date(Message.created_at).label("day"),
+                func.count(Message.id).label("requests"),
+                func.coalesce(func.sum(Message.tokens_in), 0).label("prompt_tokens"),
+                func.coalesce(func.sum(Message.tokens_out), 0).label("completion_tokens"),
+            )
+            .select_from(Conversation)
+            .join(Message, Message.conversation_id == Conversation.id)
+            .join(User, User.id == Conversation.user_id)
+            .where(
+                Message.role == MessageRole.ASSISTANT.name,
+                Message.created_at >= since,
+                Message.created_at <= until,
+            )
+            .group_by(func.date(Message.created_at))
+            .order_by(func.date(Message.created_at))
+        )
+        daily = await _scoped_user_filter(current_user, daily)
+        rows = (await db.execute(daily)).all()
+        by_day = {}
+        for row in rows:
+            by_day[str(row.day)] = {
+                "requests": int(row.requests or 0),
+                "prompt_tokens": int(row.prompt_tokens or 0),
+                "completion_tokens": int(row.completion_tokens or 0),
+                "total_tokens": int((row.prompt_tokens or 0) + (row.completion_tokens or 0)),
+            }
+        series = []
+        for d in range(1, days_in_month + 1):
+            day = datetime(y, m, d).date()
+            key = str(day)
+            entry = by_day.get(key, {"requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+            series.append({"date": key, **entry})
+        return {"series": series, "month": month, "days_in_month": days_in_month}
+
     since = datetime.utcnow() - timedelta(days=days - 1)
     since = since.replace(hour=0, minute=0, second=0, microsecond=0)
 
