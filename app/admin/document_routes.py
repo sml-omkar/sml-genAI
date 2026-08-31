@@ -115,6 +115,7 @@ async def upload_document(
         status=ProcessingStatus.UPLOADING,
     )
     db.add(document)
+    folder.document_count += 1
     await db.flush()
     await db.refresh(document)
 
@@ -214,6 +215,31 @@ async def _process_document(doc_id: str, file_path: str, department: str):
                 await db.commit()
                 return
 
+            # Stage 5/5 — Policy memory: LLM reads all chunks and builds
+            # a distilled understanding (summary + key facts).
+            document.status = ProcessingStatus.UNDERSTANDING
+            await db.commit()
+            _log_pipeline(doc_id, "memory", "AI is reading the policy and building memory...")
+            print(f"[RAG] {document.filename} — Stage 5/5: Building policy memory...")
+
+            try:
+                from app.rag.policy_memory import build_and_store_policy_memory
+                memory = await build_and_store_policy_memory(
+                    document_id=doc_id,
+                    folder_id=str(document.folder_id),
+                    department=department,
+                    document_name=document.filename,
+                    chunks=chunks,
+                )
+                if memory:
+                    _log_pipeline(doc_id, "memory", f"Memory built — {len(memory['key_facts'])} key facts extracted")
+                else:
+                    _log_pipeline(doc_id, "memory", "Memory generation skipped (will use chunk search)")
+            except Exception as e:
+                # Non-fatal: normal RAG still works without memory
+                _log_pipeline(doc_id, "memory", f"Memory generation skipped: {str(e)}")
+                print(f"[RAG] {document.filename} — memory generation failed (non-fatal): {e}")
+
             document.status = ProcessingStatus.READY
             document.chunk_count = len(chunks)
             document.processed_at = datetime.utcnow()
@@ -223,10 +249,16 @@ async def _process_document(doc_id: str, file_path: str, department: str):
             print(f"[RAG] {document.filename} — DONE! {len(chunks)} chunks ready.")
 
         except Exception as e:
-            document.status = ProcessingStatus.FAILED
-            document.error_message = f"Unexpected error: {str(e)}"
+            try:
+                result = await db.execute(select(Document).where(Document.id == doc_id))
+                doc = result.scalar_one_or_none()
+                if doc:
+                    doc.status = ProcessingStatus.FAILED
+                    doc.error_message = f"Unexpected error: {str(e)}"
+                    await db.commit()
+            except Exception:
+                await db.rollback()
             _log_pipeline(doc_id, "error", f"Unexpected error: {str(e)}")
-            await db.commit()
             print(f"[RAG] ERROR processing document {doc_id}: {e}")
 
 
@@ -249,10 +281,11 @@ async def get_processing_status(
 
     status_progress = {
         ProcessingStatus.UPLOADING: 10,
-        ProcessingStatus.EXTRACTING: 30,
-        ProcessingStatus.CHUNKING: 50,
-        ProcessingStatus.EMBEDDING: 70,
-        ProcessingStatus.STORING: 90,
+        ProcessingStatus.EXTRACTING: 25,
+        ProcessingStatus.CHUNKING: 45,
+        ProcessingStatus.EMBEDDING: 60,
+        ProcessingStatus.STORING: 75,
+        ProcessingStatus.UNDERSTANDING: 90,
         ProcessingStatus.READY: 100,
         ProcessingStatus.FAILED: 0,
     }
@@ -305,6 +338,85 @@ async def retry_document(
     return DocumentResponse.model_validate(document)
 
 
+@router.post("/backfill-memory")
+async def backfill_memories(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Build policy memory for all existing documents that don't have one
+    (documents uploaded before the memory stage was added).
+    Runs in background; check server logs for progress.
+    """
+    if current_user.role == RoleType.USER:
+        raise HTTPException(status_code=403, detail="Users cannot backfill memories.")
+
+    from app.rag.policy_memory import count_docs_missing_memory
+
+    count = await count_docs_missing_memory()
+    if count == 0:
+        return {"message": "All documents already have policy memory.", "pending": 0}
+
+    asyncio.create_task(_backfill_worker())
+    return {
+        "message": f"Backfill started for {count} document(s). Check logs for progress.",
+        "pending": count,
+    }
+
+
+@router.post("/{document_id}/rebuild-memory")
+async def rebuild_document_memory(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Rebuild policy memory for a single document (e.g. after model upgrade)."""
+    if current_user.role == RoleType.USER:
+        raise HTTPException(status_code=403, detail="Users cannot rebuild memories.")
+
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    document = result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    if document.status != ProcessingStatus.READY:
+        raise HTTPException(status_code=400, detail="Document is not ready (still processing?).")
+
+    folder_result = await db.execute(select(Folder).where(Folder.id == document.folder_id))
+    folder = folder_result.scalar_one_or_none()
+    department = folder.department if folder else ""
+
+    from app.rag.vectorstore import get_chunks_for_document
+    from app.rag.policy_memory import build_and_store_policy_memory
+
+    chunks = await get_chunks_for_document(str(document.id))
+    if not chunks:
+        raise HTTPException(status_code=400, detail="No stored chunks found for this document.")
+
+    memory = await build_and_store_policy_memory(
+        document_id=str(document.id),
+        folder_id=str(document.folder_id),
+        department=department,
+        document_name=document.filename,
+        chunks=chunks,
+    )
+    if not memory:
+        raise HTTPException(status_code=502, detail="Memory generation failed. Is the OpenAI API key configured?")
+
+    return {
+        "message": f"Policy memory rebuilt for '{document.filename}'.",
+        "summary": memory.get("summary", ""),
+        "key_facts": memory.get("key_facts", []),
+    }
+
+
+async def _backfill_worker():
+    try:
+        from app.rag.policy_memory import backfill_missing_memories
+        await backfill_missing_memories()
+    except Exception as e:
+        print(f"[MEMORY] Manual backfill failed: {e}")
+
+
 @router.delete("/{document_id}")
 async def delete_document(
     document_id: str,
@@ -333,6 +445,21 @@ async def delete_document(
         )
     except Exception as e:
         print(f"[WARNING] ChromaDB cleanup failed: {e}")
+
+    # Remove the policy memory row
+    try:
+        from app.rag.policy_memory import delete_memory
+        await delete_memory(str(document.id))
+    except Exception as e:
+        print(f"[WARNING] Memory cleanup failed: {e}")
+
+    # Clear cache for this department
+    try:
+        from app.cache.service import cache_invalidate_department
+        if folder:
+            cache_invalidate_department(folder.department)
+    except Exception:
+        pass
 
     if os.path.exists(document.stored_path):
         os.remove(document.stored_path)

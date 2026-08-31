@@ -5,7 +5,6 @@ No HuggingFace dependency — runs entirely via Ollama API.
 """
 
 from typing import List
-from functools import lru_cache
 
 import ollama as ollama_client
 

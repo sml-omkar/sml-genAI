@@ -91,7 +91,7 @@
             </tr>
         `).join('');
 
-        const processing = docs.filter(d => ['uploading','extracting','chunking','embedding','storing'].includes(d.status));
+        const processing = docs.filter(d => ['uploading','extracting','chunking','embedding','storing','understanding'].includes(d.status));
         const sec = document.getElementById('processingSection');
         const logsDiv = document.getElementById('pipelineLogs');
         const logEntries = document.getElementById('logEntries');
@@ -99,18 +99,19 @@
         if (processing.length > 0) {
             sec.style.display = 'block';
             document.getElementById('pipelineProgress').innerHTML = processing.map(d => {
-                const stages = {uploading:1,extracting:2,chunking:3,embedding:4,storing:5};
+                const stages = {uploading:1,extracting:2,chunking:3,embedding:4,storing:5,understanding:6};
                 const current = stages[d.status] || 0;
                 return `
                 <div style="margin-bottom:18px;">
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500">${d.filename}</div>
-                    <div class="pipeline-bar"><div class="fill" style="width:${current*20}%;animation:pulse 1.5s infinite"></div></div>
+                    <div class="pipeline-bar"><div class="fill" style="width:${current*16.66}%;animation:pulse 1.5s infinite"></div></div>
                     <div class="pipeline-steps">
                         <span class="pipeline-step ${current>=1?'done':''}">Upload</span>
                         <span class="pipeline-step ${current>=2?'done':''} ${current===2?'active':''}">Extract</span>
                         <span class="pipeline-step ${current>=3?'done':''} ${current===3?'active':''}">Chunk</span>
                         <span class="pipeline-step ${current>=4?'done':''} ${current===4?'active':''}">Embed</span>
-                        <span class="pipeline-step ${current>=5?'done':''}">Store</span>
+                        <span class="pipeline-step ${current>=5?'done':''} ${current===5?'active':''}">Store</span>
+                        <span class="pipeline-step ${current>=6?'done':''} ${current===6?'active':''}">Understand</span>
                     </div>
                 </div>`;
             }).join('');

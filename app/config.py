@@ -30,17 +30,17 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "aibot_pass"
     POSTGRES_DB: str = "aibot_db"
 
-    # --- Ollama ---
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3.2:1b"
+    # --- OpenAI ---
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
 
-    # --- Embeddings ---
+    # --- Embeddings (Ollama local) ---
     EMBEDDING_MODEL: str = "nomic-ai/nomic-embed-text-v1.5"
     EMBEDDING_DIMENSIONS: int = 768
 
     # --- ChromaDB ---
-    CHROMA_PERSIST_DIR: str = "./data/chroma"
-    CHROMA_COLLECTION: str = "policy_documents"
+    CHROMA_PERSIST_DIR: str = "./data/chroma_db"
+    CHROMA_COLLECTION: str = "policy_chunks"
 
     # --- JWT ---
     JWT_SECRET_KEY: str = "jwt-change-me"
@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     # --- Memory ---
     CONVERSATION_TTL_HOURS: int = 24
     MEMORY_MAX_MESSAGES: int = 10
+
+    # --- Redis Cache ---
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    CACHE_TTL_SECONDS: int = 3600
 
     @property
     def DATABASE_URL(self) -> str:

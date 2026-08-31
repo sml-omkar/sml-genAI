@@ -37,7 +37,7 @@ def _get_reranker():
 
 class NoOpEmbeddingFunction(chromadb.EmbeddingFunction):
     def __call__(self, input: list) -> list:
-        raise NotImplementedError("Embeddings are pre-computed via Ollama.")
+        raise NotImplementedError("Embeddings are pre-computed via OpenAI.")
 
 
 _chroma_client = None
@@ -104,16 +104,57 @@ async def store_chunks(
     print(f"[VECTORDB] Stored {len(chunks)} chunks for document: {document_name}")
 
 
+async def store_memory_notes(
+    document_id: str,
+    folder_id: str,
+    department: str,
+    document_name: str,
+    notes: List[str],
+    embeddings: List[List[float]],
+):
+    """
+    Store LLM-generated policy memory notes as retrievable embeddings.
+    Same document_id metadata as regular chunks, so they are cleaned up
+    automatically when the document is deleted.
+    """
+    collection = get_collection()
+
+    ids = [f"{document_id}_memory_{i}" for i in range(len(notes))]
+    metadatas = [
+        {
+            "document_id": document_id,
+            "folder_id": folder_id,
+            "department": department.lower(),
+            "document_name": document_name,
+            "chunk_index": -1,
+            "char_start": 0,
+            "is_table": False,
+            "page_number": 0,
+            "is_memory": True,
+        }
+        for _ in notes
+    ]
+
+    collection.add(
+        ids=ids,
+        documents=notes,
+        embeddings=embeddings,
+        metadatas=metadatas,
+    )
+    print(f"[VECTORDB] Stored {len(notes)} memory notes for document: {document_name}")
+
+
 def _extract_keywords(query: str) -> List[str]:
     """Extract meaningful keywords from query for hybrid search."""
     # Remove common stop words
     stop_words = {
         'what', 'is', 'the', 'are', 'a', 'an', 'in', 'of', 'for', 'to',
         'and', 'or', 'how', 'do', 'does', 'did', 'was', 'were', 'be',
-        'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-        'will', 'would', 'could', 'should', 'may', 'might', 'shall',
-        'can', 'need', 'used', 'using', 'that', 'this', 'it', 'its',
-        'on', 'at', 'by', 'with', 'from', 'as', 'into', 'about',
+        'been', 'being', 'have', 'has', 'had', 'will', 'would', 'could',
+        'should', 'may', 'might', 'shall', 'can', 'need', 'used', 'using',
+        'that', 'this', 'it', 'its', 'on', 'at', 'by', 'with', 'from',
+        'as', 'into', 'about', 'me', 'my', 'tell', 'explain', 'give',
+        'please', 'company', 'our', 'we', 'i', 'you', 'your',
     }
     words = re.findall(r'[a-zA-Z0-9]+(?:\.[0-9]+)?', query.lower())
     return [w for w in words if w not in stop_words and len(w) > 1]
@@ -129,31 +170,53 @@ def _keyword_boost(query: str, doc_text: str, base_score: float) -> float:
         return base_score
 
     doc_lower = doc_text.lower()
+    query_lower = query.lower()
 
     # Keyword matches — give bigger boost for each keyword found
-    kw_matches = sum(1 for kw in keywords if kw in doc_lower)
-    kw_ratio = kw_matches / len(keywords) if keywords else 0
+    kw_matches = [kw for kw in keywords if kw in doc_lower]
+    kw_ratio = len(kw_matches) / len(keywords) if keywords else 0
 
     # Number extraction boost — if query asks about a number and doc has it
     query_numbers = set(re.findall(r'\d+', query))
     doc_numbers = set(re.findall(r'\d+', doc_text))
     number_overlap = len(query_numbers & doc_numbers)
-    number_boost = min(number_overlap * 0.05, 0.15) if query_numbers else 0
+    number_boost = min(number_overlap * 0.12, 0.25) if query_numbers else 0
 
     # Boost for multi-word exact phrases (e.g. "EBS volume" matching "ebs volume")
-    query_lower = query.lower()
     phrase_boost = 0
     words = query_lower.split()
     for window in [2, 3]:
         for i in range(len(words) - window + 1):
             phrase = " ".join(words[i:i+window])
             if len(phrase) > 4 and phrase in doc_lower:
-                phrase_boost = max(phrase_boost, 0.08)
+                phrase_boost = max(phrase_boost, 0.12)
 
-    # If ALL keywords match, give a strong boost
-    all_match_boost = 0.20 if kw_ratio >= 1.0 else 0
+    # Partial/stemmed keyword boost — catches "license" matching "licenses", "monitor" matching "monitoring"
+    partial_boost = 0
+    for kw in keywords:
+        if kw not in doc_lower:
+            # Check if the keyword appears as a prefix of a word in the doc (stemming)
+            if re.search(rf'\b{re.escape(kw[:-1])}\w*', doc_lower):
+                partial_boost = max(partial_boost, 0.06)
+            else:
+                # Check if any doc word starts with the keyword (e.g. "policy" matches "policies")
+                if re.search(rf'\b{re.escape(kw)}\w*\b', doc_lower):
+                    partial_boost = max(partial_boost, 0.04)
 
-    boost = kw_ratio * 0.20 + number_boost + phrase_boost + all_match_boost
+    # If ALL keywords (or nearly all) match, give a strong boost
+    all_match_boost = 0.30 if kw_ratio >= 0.8 else (0.15 if kw_ratio >= 0.5 else 0)
+
+    # If NO keywords match at all, penalize slightly to push down irrelevant chunks
+    no_match_penalty = -0.05 if kw_ratio == 0 else 0
+
+    boost = (
+        kw_ratio * 0.30
+        + number_boost
+        + phrase_boost
+        + partial_boost
+        + all_match_boost
+        + no_match_penalty
+    )
     return base_score + boost
 
 
@@ -228,6 +291,35 @@ async def search_similar(
         chunks = candidates[:8] + chunks[15:]  # Keep reranked top 8 + remaining
 
     return chunks[:n_results]
+
+
+async def get_chunks_for_document(document_id: str) -> List[Dict]:
+    """
+    Fetch all stored chunks of a document from ChromaDB.
+    Used to rebuild policy memory for documents uploaded before
+    the memory stage existed (chunks are not kept in Postgres).
+    Excludes memory notes; sorted by original chunk order.
+    """
+    collection = get_collection()
+    results = collection.get(
+        where={"document_id": {"$eq": document_id}},
+        include=["documents", "metadatas"],
+    )
+    chunks = []
+    if results and results["documents"]:
+        for doc, meta in zip(results["documents"], results["metadatas"]):
+            if meta.get("is_memory"):
+                continue
+            chunks.append({
+                "text": doc,
+                "index": meta.get("chunk_index", 0),
+                "page_number": meta.get("page_number", 0),
+                "char_start": meta.get("char_start", 0),
+                "is_table": meta.get("is_table", False),
+                "metadata": meta,
+            })
+    chunks.sort(key=lambda c: c["index"])
+    return chunks
 
 
 async def delete_documents_from_vectordb(document_ids: List[str], document_names: List[str] = None):

@@ -3,6 +3,8 @@ Database Connection
 Async SQLAlchemy engine + session factory for PostgreSQL.
 """
 
+from typing import AsyncGenerator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
@@ -43,7 +45,7 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
     Yields a session, auto-closes after the request.
@@ -68,12 +70,19 @@ async def init_db():
     from app.models.user import User
     from app.models.folder import Folder
     from app.models.document import Document
+    from app.models.document_memory import DocumentMemory
     from app.models.conversation import Conversation, Message
     from app.models.group import Group, UserGroup, GroupFolder
     from app.models.department import Department
+    from app.models.feedback import Feedback
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migration: add 'understanding' to the processingstatus enum
+        # (enum labels are stored UPPERCASE; no-op if already present)
+        await conn.execute(text(
+            "ALTER TYPE processingstatus ADD VALUE IF NOT EXISTS 'UNDERSTANDING'"
+        ))
 
     # Seed default departments if none exist
     from sqlalchemy import select, func

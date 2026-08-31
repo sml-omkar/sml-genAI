@@ -36,10 +36,11 @@ async def init_database():
     print("AI-Bot Database Initialization")
     print("=" * 60)
 
-    # Step 1: Create tables
+    # Step 1: Create tables (uses app init_db so ALL models are registered,
+    # including document_memories + processingstatus enum migration)
     print("\n[1/3] Creating database tables...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    from app.database import init_db as create_tables
+    await create_tables()
     print("  Tables created successfully.")
 
     # Step 2: Check if admin exists

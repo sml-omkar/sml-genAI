@@ -15,8 +15,6 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_started
-      ollama:
-        condition: service_started
     volumes:
       - upload_data:/app/data/uploads
       - chroma_data:/app/data/chroma
@@ -49,23 +47,7 @@ services:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
 
-  # --- Ollama (SmolLM 360M) ---
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    # Pre-pull model after start
-    entrypoint: >
-      sh -c "ollama serve &
-             sleep 5 &&
-             ollama pull smollm:360m &&
-             wait"
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   chroma_data:
-  ollama_data:
   upload_data:

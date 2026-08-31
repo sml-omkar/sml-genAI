@@ -23,6 +23,7 @@ class ProcessingStatus(str, enum.Enum):
     CHUNKING = "chunking"         # Splitting text into chunks
     EMBEDDING = "embedding"       # Generating vector embeddings
     STORING = "storing"           # Storing embeddings in ChromaDB
+    UNDERSTANDING = "understanding"  # LLM reading chunks, building policy memory
     READY = "ready"               # All done, ready for queries
     FAILED = "failed"             # Something went wrong
 

@@ -15,7 +15,7 @@ echo "=========================================="
 
 # --- 1. Check prerequisites ---
 echo ""
-echo "[1/6] Checking prerequisites..."
+echo "[1/5] Checking prerequisites..."
 
 # Python
 if ! command -v python3.11 &> /dev/null; then
@@ -32,16 +32,11 @@ if ! systemctl is-active --quiet postgresql; then
 fi
 echo "  PostgreSQL: running"
 
-# Ollama
-if ! command -v ollama &> /dev/null; then
-    echo "  Installing Ollama..."
-    curl -fsSL https://ollama.com/install.sh | sh
-fi
-echo "  Ollama: installed"
+# Ollama — removed, using OpenAI API instead
 
 # --- 2. Check/create PostgreSQL database ---
 echo ""
-echo "[2/6] Setting up database..."
+echo "[2/5] Setting up database..."
 
 # Create user and database if they don't exist
 sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='aibot_user'" | grep -q 1 || \
@@ -54,7 +49,7 @@ echo "  Database ready."
 
 # --- 3. Setup Python virtual environment ---
 echo ""
-echo "[3/6] Setting up Python environment..."
+echo "[3/5] Setting up Python environment..."
 
 if [ ! -d "$VENV_DIR" ]; then
     python3.11 -m venv "$VENV_DIR"
@@ -65,31 +60,20 @@ pip install --quiet --upgrade pip
 pip install --quiet -r "$APP_DIR/requirements.txt"
 echo "  Virtual environment ready."
 
-# --- 4. Pull Ollama model ---
+# --- 4. Initialize database tables ---
 echo ""
-echo "[4/6] Pulling SmolLM 360M model..."
-
-# Start Ollama server in background if not running
-if ! pgrep -f "ollama serve" > /dev/null; then
-    ollama serve &
-    sleep 3
-fi
-
-ollama pull smollm:360m 2>/dev/null || echo "  Model already pulled."
-echo "  SmolLM 360M ready."
-
-# --- 5. Initialize database tables ---
-echo ""
-echo "[5/6] Initializing database..."
+echo "[4/5] Initializing database..."
 cd "$APP_DIR"
 python scripts/init_db.py
 
-# --- 6. Start the application ---
+# --- 5. Start the application ---
 echo ""
-echo "[6/6] Starting AI-Bot server..."
+echo "[5/5] Starting AI-Bot server..."
 
-# Pre-download embedding model (first run only)
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('nomic-ai/nomic-embed-text-v1.5')" 2>/dev/null || true
+# Verify OpenAI API key is set
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "  WARNING: OPENAI_API_KEY is not set. LLM features will not work."
+fi
 
 echo ""
 echo "=========================================="

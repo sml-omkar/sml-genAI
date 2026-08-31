@@ -31,7 +31,7 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     print(f"[{settings.APP_NAME}] Starting up...")
     print(f"[{settings.APP_NAME}] Database: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
-    print(f"[{settings.APP_NAME}] Ollama: {settings.OLLAMA_BASE_URL}")
+    print(f"[{settings.APP_NAME}] OpenAI Model: {settings.OPENAI_MODEL}")
 
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     os.makedirs(settings.CHROMA_PERSIST_DIR, exist_ok=True)
@@ -40,6 +40,11 @@ async def lifespan(app: FastAPI):
     print(f"[{settings.APP_NAME}] Database tables created/verified.")
 
     await _reprocess_stuck_documents()
+
+    # Build policy memory for existing documents uploaded before
+    # the memory stage existed (runs in background)
+    import asyncio as _asyncio
+    _asyncio.create_task(_backfill_policy_memories())
 
     from app.memory.service import get_memory_service
     memory = get_memory_service(ttl_hours=settings.CONVERSATION_TTL_HOURS)
@@ -63,7 +68,8 @@ async def _reprocess_stuck_documents():
     stuck_states = [
         ProcessingStatus.UPLOADING, ProcessingStatus.EXTRACTING,
         ProcessingStatus.CHUNKING, ProcessingStatus.EMBEDDING,
-        ProcessingStatus.STORING, ProcessingStatus.FAILED,
+        ProcessingStatus.STORING, ProcessingStatus.UNDERSTANDING,
+        ProcessingStatus.FAILED,
     ]
 
     async with AsyncSessionLocal() as db:
@@ -79,6 +85,17 @@ async def _reprocess_stuck_documents():
                 department = folder.department if folder else ""
                 print(f"[{settings.APP_NAME}]   Reprocessing: {doc.filename} (dept={department})")
                 asyncio.create_task(_process_document(str(doc.id), doc.stored_path, department))
+
+
+async def _backfill_policy_memories():
+    """Background task: build policy memory for existing documents without one."""
+    try:
+        from app.rag.policy_memory import backfill_missing_memories
+        processed = await backfill_missing_memories()
+        if processed:
+            print(f"[{settings.APP_NAME}] Policy memory backfilled for {processed} document(s).")
+    except Exception as e:
+        print(f"[{settings.APP_NAME}] Policy memory backfill failed: {e}")
 
 
 # --- Create FastAPI App ---
@@ -100,7 +117,73 @@ templates = Jinja2Templates(directory=str(templates_dir))
 # --- Health Check ---
 @app.get("/health")
 async def health_check():
-    return JSONResponse(content={"status": "healthy", "app": settings.APP_NAME})
+    """Comprehensive health check for all services."""
+    from app.cache.service import get_stats as get_cache_stats
+    
+    health = {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": "1.0.0",
+        "services": {}
+    }
+    
+    # Check PostgreSQL
+    try:
+        from app.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            await db.execute(select(1))
+        health["services"]["database"] = {"status": "healthy"}
+    except Exception as e:
+        health["services"]["database"] = {"status": "unhealthy", "error": str(e)}
+        health["status"] = "degraded"
+    
+    # Check OpenAI
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        models = client.models.list()
+        health["services"]["openai"] = {
+            "status": "healthy",
+            "model": settings.OPENAI_MODEL,
+            "embedding_model": settings.EMBEDDING_MODEL,
+        }
+    except Exception as e:
+        health["services"]["openai"] = {"status": "unhealthy", "error": str(e)}
+        health["status"] = "degraded"
+    
+    # Check ChromaDB
+    try:
+        from app.rag.vectorstore import get_collection_stats
+        stats = await get_collection_stats()
+        health["services"]["chromadb"] = {
+            "status": "healthy",
+            "total_chunks": stats["total_chunks"],
+        }
+    except Exception as e:
+        health["services"]["chromadb"] = {"status": "unhealthy", "error": str(e)}
+        health["status"] = "degraded"
+    
+    # Check Redis/Cache
+    try:
+        cache_stats = get_cache_stats()
+        health["services"]["cache"] = {
+            "status": "healthy",
+            "backend": cache_stats.get("backend", "unknown"),
+            "keys": cache_stats.get("keys", 0),
+        }
+    except Exception as e:
+        health["services"]["cache"] = {"status": "unhealthy", "error": str(e)}
+    
+    return JSONResponse(
+        content=health,
+        status_code=200 if health["status"] == "healthy" else 503,
+    )
+
+
+@app.get("/health/quick")
+async def quick_health_check():
+    """Quick health check for load balancers."""
+    return JSONResponse(content={"status": "ok"})
 
 
 # --- Import and Mount API Routes ---
@@ -121,6 +204,12 @@ app.include_router(group_router, tags=["Groups"])
 
 from app.admin.department_routes import router as department_router
 app.include_router(department_router, tags=["Departments"])
+
+from app.admin.feedback_routes import router as feedback_router
+app.include_router(feedback_router, prefix="/api/feedback", tags=["Feedback"])
+
+from app.admin.rag_debug_routes import router as rag_debug_router
+app.include_router(rag_debug_router, prefix="/api/rag", tags=["RAG Debug"])
 
 # Teams Bot endpoint
 from app.bot.bot_handler import router as bot_router
@@ -195,7 +284,7 @@ async def chat_endpoint(request: ChatMessage, req: Request = None):
     Per-user conversation memory with 24h expiry.
     Each user gets their own conversation threads.
     """
-    from app.rag.chain import query_rag
+    from app.rag.agent import query_rag
     from app.memory.service import get_memory_service
     from app.auth.jwt import verify_token
 

@@ -124,7 +124,7 @@ class PolicyBot(TeamsActivityHandler):
 
         # --- Query the RAG pipeline ---
         try:
-            from app.rag.chain import query_rag
+            from app.rag.agent import query_rag
             from app.memory.service import get_memory_service
             from app.config import get_settings
 

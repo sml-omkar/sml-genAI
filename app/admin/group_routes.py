@@ -107,7 +107,6 @@ async def create_group(
     group = Group(name=data.name, description=data.description)
     db.add(group)
     await db.flush()
-    await db.commit()
     await db.refresh(group)
 
     return GroupResponse(
@@ -156,7 +155,7 @@ async def delete_group(
         raise HTTPException(status_code=404, detail="Group not found")
 
     await db.delete(group)
-    await db.commit()
+    await db.flush()
     return {"detail": "Group deleted"}
 
 
@@ -189,7 +188,7 @@ async def add_user_to_group(
 
     ug = UserGroup(user_id=user.id, group_id=group_id)
     db.add(ug)
-    await db.commit()
+    await db.flush()
     return {"detail": f"User {user.email} added to group {group.name}"}
 
 
@@ -209,7 +208,7 @@ async def remove_user_from_group(
         raise HTTPException(status_code=404, detail="User not in group")
 
     await db.delete(ug)
-    await db.commit()
+    await db.flush()
     return {"detail": "User removed from group"}
 
 
@@ -242,7 +241,7 @@ async def add_folder_to_group(
 
     gf = GroupFolder(group_id=group_id, folder_id=folder.id)
     db.add(gf)
-    await db.commit()
+    await db.flush()
     return {"detail": f"Group {group.name} granted access to folder {folder.name}"}
 
 
@@ -262,5 +261,5 @@ async def remove_folder_from_group(
         raise HTTPException(status_code=404, detail="Group does not have access to this folder")
 
     await db.delete(gf)
-    await db.commit()
+    await db.flush()
     return {"detail": "Folder access revoked from group"}

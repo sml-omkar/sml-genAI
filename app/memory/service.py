@@ -134,9 +134,9 @@ class MemoryService:
         async with AsyncSessionLocal() as db:
             cutoff = datetime.utcnow() - timedelta(hours=self.ttl_hours)
 
-            # Find expired conversations
+            # Find expired conversations (inactive longer than TTL)
             result = await db.execute(
-                select(Conversation).where(Conversation.created_at < cutoff)
+                select(Conversation).where(Conversation.updated_at < cutoff)
             )
             expired = result.scalars().all()
 
@@ -154,8 +154,9 @@ class MemoryService:
         await db.delete(conv)
 
     def _is_expired(self, conv: Conversation) -> bool:
-        """Check if conversation is older than TTL."""
-        age = datetime.utcnow() - conv.created_at
+        """Check if conversation has been inactive longer than TTL."""
+        last_activity = conv.updated_at or conv.created_at
+        age = datetime.utcnow() - last_activity
         return age > timedelta(hours=self.ttl_hours)
 
     async def delete_conversation(self, conversation_id: str) -> bool:
@@ -180,4 +181,7 @@ def get_memory_service(ttl_hours: int = 24, max_messages: int = 10) -> MemorySer
     global _memory_service
     if _memory_service is None:
         _memory_service = MemoryService(ttl_hours=ttl_hours, max_messages=max_messages)
+    else:
+        _memory_service.ttl_hours = ttl_hours
+        _memory_service.max_messages = max_messages
     return _memory_service

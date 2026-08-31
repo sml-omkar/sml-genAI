@@ -8,36 +8,40 @@ from typing import List, Dict, Optional
 import hashlib
 import re
 
+from openai import OpenAI
+
+from app.config import get_settings
+from app.rag.vectorstore import search_similar
+from app.cache.service import cache_get, cache_set, get_rag_cache_key
+
+settings = get_settings()
+
 FALLBACK_RESPONSE = "I don't have specific information about that in the company documents. Could you ask about something else, like our IT policies, HR procedures, or infrastructure setup?"
 
 
 def _no_context_llm_call(question: str) -> str:
     """Call LLM for no-context fallback. Protected by try/except."""
     try:
-        client = Client(host=settings.OLLAMA_BASE_URL)
-        response = client.chat(
-            model=settings.OLLAMA_MODEL,
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "You are Cyprus AI, a friendly company assistant. Be warm and conversational."},
                 {"role": "user", "content": NO_CONTEXT_PROMPT.format(question=question)},
             ],
-            stream=False,
-            options={"temperature": 0.3, "num_ctx": 4096, "num_predict": 200, "num_gpu": 99},
+            temperature=0.3,
+            max_completion_tokens=200,
         )
-        return response["message"]["content"].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"[RAG] LLM call failed: {e}")
-        return FALLBACK_RESPONSE
-
-from ollama import Client
-
-from app.config import get_settings
-from app.rag.vectorstore import search_similar
-
-settings = get_settings()
-
-_query_cache: Dict[str, Dict] = {}
-MAX_CACHE_SIZE = 200
+        # Provide more helpful fallback based on error type
+        if "connect" in str(e).lower() or "refused" in str(e).lower():
+            return "I'm sorry, but I'm currently unable to connect to the AI service. Please try again in a few minutes or contact IT support if the issue persists."
+        elif "timeout" in str(e).lower():
+            return "I'm sorry, but the AI service is taking longer than expected to respond. Please try a simpler question or try again later."
+        else:
+            return FALLBACK_RESPONSE
 
 
 # ---- Greeting / conversational patterns (no RAG needed) ----
@@ -207,12 +211,13 @@ async def query_rag(
     3. Filter and select best context
     4. Generate answer
     """
-    # Cache key (used throughout)
+    # Check cache first
     history_hash = hashlib.md5(str(chat_history or [])[:500].encode()).hexdigest()[:8]
-    cache_key = hashlib.md5(f"{question}:{department}:{history_hash}".encode()).hexdigest()
-    if cache_key in _query_cache:
+    cache_key = get_rag_cache_key(question, department, history_hash)
+    cached = cache_get(cache_key)
+    if cached:
         print(f"[RAG] Cache hit for: {question[:50]}...")
-        return _query_cache[cache_key]
+        return cached
 
     # Step 0: Handle greetings directly (no RAG needed)
     greeting_key = _detect_greeting(question)
@@ -247,8 +252,8 @@ async def query_rag(
 
     # Step 2: Hard gate — best chunk must be relevant enough
     best_score = chunks[0].get("relevance_score", 0)
-    print(f"[RAG] Best score: {best_score:.4f} (threshold: 0.45)")
-    if best_score < 0.45:
+    print(f"[RAG] Best score: {best_score:.4f} (threshold: {min_relevance})")
+    if best_score < min_relevance:
         return {
             "answer": _no_context_llm_call(question),
             "sources": [],
@@ -312,24 +317,17 @@ async def query_rag(
     ]
 
     try:
-        client = Client(host=settings.OLLAMA_BASE_URL)
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-        response = client.chat(
-            model=settings.OLLAMA_MODEL,
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
             messages=messages,
-            stream=False,
-            options={
-                "temperature": 0.3,
-                "num_ctx": 8192,
-                "num_predict": 1024,
-                "top_p": 0.9,
-                "repeat_penalty": 1.15,
-                "repeat_last_n": 64,
-                "num_gpu": 99,
-            },
+            temperature=0.3,
+            max_completion_tokens=1024,
+            top_p=0.9,
         )
 
-        answer = response["message"]["content"].strip()
+        answer = response.choices[0].message.content.strip()
         answer = _truncate_repetition(answer)
 
         # Retry if LLM echoed context
@@ -338,13 +336,13 @@ async def query_rag(
                 {"role": "system", "content": "You are Cyprus AI, a friendly assistant. Answer warmly in 1-3 sentences. Do NOT copy text — write your own answer."},
                 {"role": "user", "content": f"Facts:\n{context}\n\nQuestion: {question}\n\nAnswer:"},
             ]
-            retry = client.chat(
-                model=settings.OLLAMA_MODEL,
+            retry = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
                 messages=retry_msgs,
-                stream=False,
-                options={"temperature": 0.3, "num_ctx": 8192, "num_predict": 256, "num_gpu": 99},
+                temperature=0.3,
+                max_completion_tokens=256,
             )
-            retry_answer = retry["message"]["content"].strip()
+            retry_answer = retry.choices[0].message.content.strip()
             if not _is_echo(retry_answer) and len(retry_answer) > 10:
                 answer = retry_answer
 
@@ -355,13 +353,13 @@ async def query_rag(
                 {"role": "system", "content": "You are Cyprus AI. Answer using ONLY the facts below. Extract the specific answer — do not say you don't know if the facts contain it. Be friendly."},
                 {"role": "user", "content": f"Facts:\n{context}\n\nQuestion: {question}\n\nAnswer with the specific fact:"},
             ]
-            retry = client.chat(
-                model=settings.OLLAMA_MODEL,
+            retry = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
                 messages=retry_msgs,
-                stream=False,
-                options={"temperature": 0.0, "num_ctx": 8192, "num_predict": 256, "num_gpu": 99},
+                temperature=0.0,
+                max_completion_tokens=256,
             )
-            retry_answer = retry["message"]["content"].strip()
+            retry_answer = retry.choices[0].message.content.strip()
             if not any(p in retry_answer.lower() for p in unsure) and len(retry_answer) > 10:
                 answer = retry_answer
 
@@ -370,11 +368,17 @@ async def query_rag(
         for c in selected:
             doc = c["metadata"].get("document_name", "Unknown")
             score = c.get("relevance_score", 0)
+            page = c["metadata"].get("page_number", 0)
+            folder_id = c["metadata"].get("folder_id", "")
+            doc_id = c["metadata"].get("document_id", "")
             if doc not in seen_docs or score > seen_docs[doc]["relevance_score"]:
                 seen_docs[doc] = {
                     "document_name": doc,
                     "department": c["metadata"].get("department", "N/A"),
                     "relevance_score": round(score, 4),
+                    "page_number": page,
+                    "document_id": doc_id,
+                    "folder_id": folder_id,
                 }
         sources = list(seen_docs.values())
 
@@ -384,14 +388,13 @@ async def query_rag(
             "chunks_retrieved": len(selected),
         }
 
-        if len(_query_cache) >= MAX_CACHE_SIZE:
-            _query_cache.pop(next(iter(_query_cache)))
-        _query_cache[cache_key] = result
+        # Cache the result
+        cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
 
         return result
 
     except Exception as e:
-        print(f"[RAG] Ollama error: {e}")
+        print(f"[RAG] OpenAI error: {e}")
         return {
             "answer": "I encountered an error processing your question. Please try again.",
             "sources": [],
