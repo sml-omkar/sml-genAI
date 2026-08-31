@@ -1,0 +1,58 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "CHANGE_ME_APP_GUID",
+  "packageName": "com.sml.cyprusai",
+  "developer": {
+    "name": "Sanghvi Movers Limited",
+    "websiteUrl": "CHANGE_ME_DOMAIN",
+    "privacyUrl": "CHANGE_ME_DOMAIN",
+    "termsOfUseUrl": "CHANGE_ME_DOMAIN"
+  },
+  "name": {
+    "short": "Cyprus AI",
+    "full": "Cyprus AI Policy Assistant"
+  },
+  "description": {
+    "short": "Company policy chatbot",
+    "full": "Cyprus AI answers your questions about company policies, HR procedures, IT guidelines and other documents – quickly and with accurate, sourced answers."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#E00000",
+  "bots": [
+    {
+      "botId": "CHANGE_ME_BOT_ID",
+      "scopes": [
+        "personal",
+        "team"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false
+    }
+  ],
+  "validDomains": [
+    "CHANGE_ME_DOMAIN"
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "type": "Application",
+          "name": "ChannelMessage.Read.Group"
+        },
+        {
+          "type": "Application",
+          "name": "Team.ReadBasic.Group"
+        }
+      ]
+    }
+  }
+}

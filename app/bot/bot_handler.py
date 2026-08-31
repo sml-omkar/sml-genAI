@@ -201,10 +201,26 @@ bot = PolicyBot()
 @router.post("/api/messages")
 async def messages(request: Request):
     """Teams Bot Framework message endpoint."""
+    from fastapi.responses import JSONResponse
+
     body = await request.body()
     auth_header = request.headers.get("Authorization", "")
 
-    activity = Activity().deserialize(json.loads(body))
+    if not body:
+        return JSONResponse(status_code=400, content={"error": "Empty request body"})
+
+    try:
+        activity = Activity().deserialize(json.loads(body))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JSONResponse(status_code=400, content={"error": "Invalid activity payload"})
+
+    if adapter is None:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Teams bot is not configured (MicrosoftAppId/MicrosoftAppPassword missing)."},
+        )
+
     await adapter.process_activity(activity, auth_header, bot.on_turn)
 
     return Response(status_code=200)

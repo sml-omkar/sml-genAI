@@ -5,6 +5,7 @@ Sets up the CloudAdapter for Teams Bot integration with FastAPI.
 
 import os
 from types import SimpleNamespace
+from typing import Optional
 
 from botbuilder.integration.aiohttp import (
     CloudAdapter,
@@ -17,11 +18,18 @@ from app.config import get_settings
 settings = get_settings()
 
 
-def create_adapter() -> CloudAdapter:
+def create_adapter() -> Optional[CloudAdapter]:
     """
     Create and configure the Bot Framework CloudAdapter.
     Uses Microsoft App credentials from environment variables.
+
+    Returns None when the Microsoft App credentials are not configured yet,
+    so the web app can still run without a live Teams bot.
     """
+    if not (settings.MicrosoftAppId and settings.MicrosoftAppPassword):
+        print("[BOT] MicrosoftAppId/MicrosoftAppPassword not set — Teams bot disabled.")
+        return None
+
     config = SimpleNamespace(
         APP_TYPE=settings.MicrosoftAppType,
         APP_ID=settings.MicrosoftAppId,
@@ -42,5 +50,5 @@ def create_adapter() -> CloudAdapter:
     return adapter
 
 
-# Singleton adapter instance
+# Singleton adapter instance (None until bot credentials are configured)
 adapter = create_adapter()
