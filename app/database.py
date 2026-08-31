@@ -83,6 +83,23 @@ async def init_db():
         await conn.execute(text(
             "ALTER TYPE processingstatus ADD VALUE IF NOT EXISTS 'UNDERSTANDING'"
         ))
+        # Migration: add token-usage columns to messages (no-op if already present)
+        await conn.execute(text(
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tokens_in INTEGER DEFAULT 0"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tokens_out INTEGER DEFAULT 0"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS model_used VARCHAR(100)"
+        ))
+        # Migration: per-user chatbot access control columns (no-op if present)
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_access_enabled BOOLEAN NOT NULL DEFAULT TRUE"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_token_limit INTEGER NOT NULL DEFAULT 0"
+        ))
 
     # Seed default departments if none exist
     from sqlalchemy import select, func

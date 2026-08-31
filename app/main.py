@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
-from fastapi import FastAPI, Request, Depends, Query
+from fastapi import FastAPI, Request, Depends, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -193,6 +193,9 @@ app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 from app.admin.routes import router as admin_router
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
 
+from app.admin.usage_routes import router as usage_router
+app.include_router(usage_router, prefix="/api/admin", tags=["Admin Usage"])
+
 from app.admin.folder_routes import router as folder_router
 app.include_router(folder_router, prefix="/api/folders", tags=["Folders"])
 
@@ -217,12 +220,12 @@ app.include_router(bot_router, tags=["Bot"])
 
 
 # =============================================================================
-# PUBLIC ROUTES — Cyprus AI Chatbot (no auth required)
+# PUBLIC ROUTES — EthosAI Chatbot (no auth required)
 # =============================================================================
 
 @app.get("/", response_class=HTMLResponse)
-async def cyprus_chatbot(request: Request):
-    """Public Cyprus AI chatbot — everyone sees this first."""
+async def ethos_chatbot(request: Request):
+    """Public EthosAI chatbot — everyone sees this first."""
     return templates.TemplateResponse("chat.html", {"request": request})
 
 
@@ -278,28 +281,55 @@ class ChatMessage(BaseModel):
 
 
 @app.post("/api/chat")
-async def chat_endpoint(request: ChatMessage, req: Request = None):
+async def chat_endpoint(request: ChatMessage, db: AsyncSession = Depends(get_db), req: Request = None):
     """
     Chat API — query the RAG pipeline.
     Per-user conversation memory with 24h expiry.
     Each user gets their own conversation threads.
+
+    Access is gated server-side: only users registered in the database (and
+    marked active) are forwarded to the LLM. Token usage is recorded per user.
     """
     from app.rag.agent import query_rag
     from app.memory.service import get_memory_service
     from app.auth.jwt import verify_token
+    from app.models.user import User
+    from app.admin.access import check_user_can_use_chat
 
     user_id = None
     user_dept = None
 
-    # Extract user from JWT for per-user memory
-    if req:
-        auth_header = req.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            payload = verify_token(token)
-            if payload:
-                user_id = payload.get("sub")
-                user_dept = payload.get("department")
+    # --- Server-side user gating ---
+    # The request MUST present a valid JWT issued by this platform. The subject
+    # is resolved against the database; only an existing, active user is allowed
+    # through to the LLM.
+    if not req:
+        raise HTTPException(status_code=401, detail="Missing authentication token.")
+
+    auth_header = req.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    token = auth_header[7:]
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
+
+    user_id = payload.get("sub")
+    user_email = payload.get("email")
+    user_dept = payload.get("department")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    db_user = result.scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is not registered with EthosAI.",
+        )
+
+    # Admin-managed access control + daily token limit enforcement
+    allowed, reason = await check_user_can_use_chat(db, db_user)
+    if not allowed:
+        raise HTTPException(status_code=403, detail=reason)
 
     memory = get_memory_service(
         ttl_hours=settings.CONVERSATION_TTL_HOURS,
@@ -324,16 +354,26 @@ async def chat_endpoint(request: ChatMessage, req: Request = None):
         question=request.message,
         department=None,  # Chat searches ALL documents — RBAC is per-folder, not per-department
         chat_history=history,
+        include_usage=True,
     )
 
+    usage = result.get("usage", {})
     await memory.add_message(
         conversation_id=conv_id,
         role="assistant",
         content=result.get("answer", ""),
         sources=result.get("sources"),
+        tokens_in=usage.get("prompt_tokens", 0),
+        tokens_out=usage.get("completion_tokens", 0),
+        model_used=settings.OPENAI_MODEL,
     )
 
     result["conversation_id"] = conv_id
+    result["usage"] = {
+        "prompt_tokens": usage.get("prompt_tokens", 0),
+        "completion_tokens": usage.get("completion_tokens", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+    }
     return result
 
 

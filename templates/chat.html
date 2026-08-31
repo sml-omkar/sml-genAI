@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyprus AI — SML Policy Assistant</title>
+    <title>EthosAI — SML Policy Assistant</title>
+    <link rel="icon" type="image/png" href="/static/sml.png">
+    <link rel="apple-touch-icon" href="/static/sml.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Inter', -apple-system, sans-serif;
-            background: #f8f8f8;
-            color: #1a1a1a;
+            background: #0b0b0e;
+            color: #f2f2f5;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -19,29 +21,31 @@
         }
 
         .cy-header {
-            background: white; border-bottom: 1px solid #e5e5e5;
+            background: #16161b; border-bottom: 1px solid #2a2a33;
             padding: 0 24px; height: 56px;
             display: flex; align-items: center; justify-content: space-between;
         }
         .cy-header-left { display: flex; align-items: center; gap: 12px; }
         .cy-logo {
-            width: 36px; height: 36px; background: #e00000;
+            width: 36px; height: 36px; background: #fff;
             border-radius: 8px; display: flex; align-items: center;
-            justify-content: center; color: white; font-size: 16px; font-weight: 700;
+            justify-content: center; overflow: hidden; padding: 4px;
+            border: 1px solid #2a2a33; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
+        .cy-logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 4px; }
         .cy-header h1 { font-size: 16px; font-weight: 600; }
-        .cy-header small { font-size: 11px; color: #999; }
+        .cy-header small { font-size: 11px; color: #8a8a95; }
 
         .cy-user-info { display: flex; align-items: center; gap: 12px; }
         .cy-user-info .user-name { font-size: 13px; text-align: right; font-weight: 500; }
-        .cy-user-info .user-dept { font-size: 10px; color: #999; }
+        .cy-user-info .user-dept { font-size: 10px; color: #8a8a95; }
         .cy-login-btn {
-            background: white; border: 1px solid #e5e5e5;
-            color: #6e6e6e; padding: 7px 16px; border-radius: 8px;
+            background: #16161b; border: 1px solid #2a2a33;
+            color: #9b9ba5; padding: 7px 16px; border-radius: 8px;
             cursor: pointer; font-size: 12px; font-family: inherit;
             font-weight: 500; transition: all 0.15s;
         }
-        .cy-login-btn:hover { border-color: #e00000; color: #e00000; }
+        .cy-login-btn:hover { border-color: #ff2d2d; color: #ff2d2d; }
 
         .cy-chat-container {
             flex: 1; display: flex; flex-direction: column;
@@ -59,28 +63,29 @@
             display: flex; align-items: center; justify-content: center;
             font-size: 13px; font-weight: 700; flex-shrink: 0;
         }
-        .cy-msg.bot .cy-avatar { background: #e00000; color: white; }
-        .cy-msg.user .cy-avatar { background: #e5e5e5; color: #6e6e6e; }
+        .cy-msg.bot .cy-avatar { background: #fff; overflow: hidden; padding: 3px; border: 1px solid #2a2a33; }
+        .cy-msg.bot .cy-avatar img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 50%; }
+        .cy-msg.user .cy-avatar { background: #2a2a33; color: #9b9ba5; }
         .cy-bubble {
             padding: 12px 16px; border-radius: 12px;
             font-size: 13px; line-height: 1.6; white-space: pre-wrap;
         }
         .cy-msg.bot .cy-bubble {
-            background: white; border: 1px solid #e5e5e5;
+            background: #16161b; border: 1px solid #2a2a33;
             border-top-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
         .cy-msg.user .cy-bubble {
-            background: #e00000; color: white; border-top-right-radius: 4px;
+            background: #ff2d2d; color: white; border-top-right-radius: 4px;
         }
-        .cy-sources { font-size: 10px; color: #999; margin-top: 6px; font-style: italic; }
+        .cy-sources { font-size: 10px; color: #8a8a95; margin-top: 6px; font-style: italic; }
         .cy-typing {
             display: flex; gap: 4px; padding: 12px 16px;
-            background: white; border: 1px solid #e5e5e5;
+            background: #16161b; border: 1px solid #2a2a33;
             border-radius: 12px; width: fit-content;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
         .cy-typing span {
-            width: 6px; height: 6px; background: #e00000;
+            width: 6px; height: 6px; background: #ff2d2d;
             border-radius: 50%; animation: bounce 1.2s infinite;
         }
         .cy-typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -90,26 +95,26 @@
         .cy-input-area { padding: 16px 0 24px; }
         .cy-input-wrapper {
             display: flex; gap: 8px;
-            background: white; border: 1px solid #e5e5e5;
+            background: #16161b; border: 1px solid #2a2a33;
             border-radius: 12px; padding: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
         .cy-input-wrapper input {
             flex: 1; background: transparent; border: none;
-            color: #1a1a1a; padding: 8px 12px; font-size: 13px;
+            color: #f2f2f5; padding: 8px 12px; font-size: 13px;
             font-family: inherit; outline: none;
         }
-        .cy-input-wrapper input::placeholder { color: #999; }
+        .cy-input-wrapper input::placeholder { color: #8a8a95; }
         .cy-send-btn {
-            background: #e00000; color: white; border: none;
+            background: #ff2d2d; color: white; border: none;
             padding: 10px 24px; border-radius: 8px; cursor: pointer;
             font-size: 13px; font-weight: 600; font-family: inherit;
             transition: all 0.15s;
         }
-        .cy-send-btn:hover { background: #c50000; box-shadow: 0 4px 16px rgba(224,0,0,0.2); }
+        .cy-send-btn:hover { background: #ff5252; box-shadow: 0 4px 16px rgba(255,45,45,0.3); }
         .cy-send-btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
 
-        .cy-footer { text-align: center; padding: 12px; font-size: 10px; color: #ccc; }
+        .cy-footer { text-align: center; padding: 12px; font-size: 10px; color: #70707a; }
 
         .cy-modal-overlay {
             display: none; position: fixed; top: 0; left: 0;
@@ -119,47 +124,47 @@
         }
         .cy-modal-overlay.active { display: flex; }
         .cy-modal {
-            background: white; border: 1px solid #e5e5e5;
+            background: #16161b; border: 1px solid #2a2a33;
             border-radius: 12px; width: 400px; padding: 32px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.12);
         }
         .cy-modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
-        .cy-modal .subtitle { font-size: 12px; color: #999; margin-bottom: 24px; }
+        .cy-modal .subtitle { font-size: 12px; color: #8a8a95; margin-bottom: 24px; }
         .cy-modal .form-group { margin-bottom: 16px; }
-        .cy-modal label { display: block; font-size: 12px; color: #6e6e6e; margin-bottom: 6px; font-weight: 500; }
+        .cy-modal label { display: block; font-size: 12px; color: #9b9ba5; margin-bottom: 6px; font-weight: 500; }
         .cy-modal input[type="email"],
         .cy-modal input[type="password"] {
             width: 100%; padding: 10px 14px;
-            background: #fafafa; border: 1px solid #e5e5e5;
-            border-radius: 8px; color: #1a1a1a; font-size: 13px;
+            background: #1a1a1f; border: 1px solid #2a2a33;
+            border-radius: 8px; color: #f2f2f5; font-size: 13px;
             font-family: inherit; outline: none; transition: border-color 0.15s;
         }
-        .cy-modal input:focus { border-color: #e00000; box-shadow: 0 0 0 3px rgba(224,0,0,0.06); }
+        .cy-modal input:focus { border-color: #ff2d2d; box-shadow: 0 0 0 3px rgba(255,45,45,0.15); }
         .cy-modal .login-btn {
-            width: 100%; padding: 11px; background: #e00000;
+            width: 100%; padding: 11px; background: #ff2d2d;
             color: white; border: none; border-radius: 8px;
             font-size: 14px; font-weight: 600; cursor: pointer;
             font-family: inherit; transition: all 0.15s; margin-top: 4px;
         }
-        .cy-modal .login-btn:hover { background: #c50000; box-shadow: 0 4px 16px rgba(224,0,0,0.2); }
+        .cy-modal .login-btn:hover { background: #ff5252; box-shadow: 0 4px 16px rgba(255,45,45,0.3); }
         .cy-modal .login-btn:disabled { background: #ccc; cursor: not-allowed; }
-        .cy-modal .error-msg { color: #e00000; font-size: 12px; margin-top: 14px; display: none; text-align: center; }
+        .cy-modal .error-msg { color: #ff2d2d; font-size: 12px; margin-top: 14px; display: none; text-align: center; }
         .cy-modal .cancel-btn {
-            width: 100%; padding: 8px; background: white;
-            color: #999; border: 1px solid #e5e5e5;
+            width: 100%; padding: 8px; background: #16161b;
+            color: #8a8a95; border: 1px solid #2a2a33;
             border-radius: 8px; font-size: 12px; cursor: pointer;
             margin-top: 10px; font-family: inherit; transition: all 0.15s;
         }
-        .cy-modal .cancel-btn:hover { border-color: #999; color: #6e6e6e; }
+        .cy-modal .cancel-btn:hover { border-color: #8a8a95; color: #9b9ba5; }
     </style>
 </head>
 <body>
 
     <div class="cy-header">
         <div class="cy-header-left">
-            <div class="cy-logo">C</div>
+            <div class="cy-logo"><img src="/static/sml.png" alt="SML Logo"></div>
             <div>
-                <h1>Cyprus AI</h1>
+                <h1>EthosAI</h1>
                 <small>SML Policy Assistant</small>
             </div>
         </div>
@@ -178,9 +183,9 @@
     <div class="cy-chat-container">
         <div class="cy-messages" id="chatMessages">
             <div class="cy-msg bot">
-                <div class="cy-avatar">C</div>
+                <div class="cy-avatar"><img src="/static/sml.png" alt="EthosAI"></div>
                 <div>
-                    <div class="cy-bubble">Hello! I'm Cyprus AI, your company policy assistant. Ask me anything about company policies, IT guidelines, HR procedures, or infrastructure docs.
+                    <div class="cy-bubble">Hello! I'm EthosAI, your company policy assistant. Ask me anything about company policies, IT guidelines, HR procedures, or infrastructure docs.
 
 To get started, just type your question below. You'll be asked to log in when you send your first message.</div>
                 </div>
@@ -201,7 +206,7 @@ To get started, just type your question below. You'll be asked to log in when yo
     <div class="cy-modal-overlay" id="loginModal">
         <div class="cy-modal">
             <h2>Sign In</h2>
-            <p class="subtitle">Login to chat with Cyprus AI</p>
+            <p class="subtitle">Login to chat with EthosAI</p>
             <form onsubmit="return handleLogin(event)">
                 <div class="form-group">
                     <label>Email</label>
@@ -223,18 +228,18 @@ To get started, just type your question below. You'll be asked to log in when yo
         let conversationId = null;
         let pendingMessage = null;
 
-        function getUser() { try { return JSON.parse(localStorage.getItem('cyprus_user')); } catch { return null; } }
-        function getToken() { return localStorage.getItem('cyprus_token'); }
+        function getUser() { try { return JSON.parse(localStorage.getItem('ethos_user')); } catch { return null; } }
+        function getToken() { return localStorage.getItem('ethos_token'); }
 
         function setUser(token, user) {
-            localStorage.setItem('cyprus_token', token);
-            localStorage.setItem('cyprus_user', JSON.stringify(user));
+            localStorage.setItem('ethos_token', token);
+            localStorage.setItem('ethos_user', JSON.stringify(user));
             currentUser = user; updateHeader();
         }
 
         function logoutUser() {
-            localStorage.removeItem('cyprus_token');
-            localStorage.removeItem('cyprus_user');
+            localStorage.removeItem('ethos_token');
+            localStorage.removeItem('ethos_user');
             currentUser = null; conversationId = null;
             updateHeader();
             addBotMessage("You've been signed out. Ask me anything and you'll be prompted to log in again.");
@@ -312,7 +317,7 @@ To get started, just type your question below. You'll be asked to log in when yo
         function addBotMessage(text, sources) {
             const c = document.getElementById('chatMessages');
             const d = document.createElement('div'); d.className = 'cy-msg bot';
-            let h = '<div class="cy-avatar">C</div><div><div class="cy-bubble">' + esc(text) + '</div>';
+            let h = '<div class="cy-avatar"><img src="/static/sml.png" alt="EthosAI"></div><div><div class="cy-bubble">' + esc(text) + '</div>';
             if (sources && sources.length) {
                 const names = sources.map(s => s.document_name || s.filename || (typeof s === 'string' ? s : ''));
                 h += '<div class="cy-sources">Sources: ' + names.filter(Boolean).join(', ') + '</div>';
@@ -323,7 +328,7 @@ To get started, just type your question below. You'll be asked to log in when yo
         function showTyping() {
             const c = document.getElementById('chatMessages');
             const d = document.createElement('div'); d.className = 'cy-msg bot'; d.id = 'typingIndicator';
-            d.innerHTML = '<div class="cy-avatar">C</div><div class="cy-typing"><span></span><span></span><span></span></div>';
+            d.innerHTML = '<div class="cy-avatar"><img src="/static/sml.png" alt="EthosAI"></div><div class="cy-typing"><span></span><span></span><span></span></div>';
             c.appendChild(d); c.scrollTop = c.scrollHeight; document.getElementById('sendBtn').disabled = true;
         }
         function hideTyping() { const e = document.getElementById('typingIndicator'); if (e) e.remove(); document.getElementById('sendBtn').disabled = false; }

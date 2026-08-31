@@ -3,67 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Cyprus AI{% endblock %}</title>
+    <title>{% block title %}EthosAI{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/sml.png">
+    <link rel="apple-touch-icon" href="/static/sml.png">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="xp-layout">
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <div class="brand-icon">C</div>
+                <div class="brand-icon"><img src="/static/sml.png" alt="SML Logo"></div>
                 <div class="brand-text">
-                    <strong>Cyprus AI</strong>
-                    <small>Admin Portal</small>
+                    <strong>EthosAI</strong>
+                    <small>Admin Portal • RBAC</small>
                 </div>
             </div>
 
             <nav class="sidebar-nav">
+                <div class="nav-section">Overview</div>
                 <a href="/admin/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">
-                    <span class="nav-icon">◈</span> <span>Dashboard</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span> <span>Dashboard</span>
                 </a>
+
+                <div class="nav-section">People & Access</div>
                 <a href="/admin/users" class="{% if active_page == 'users' %}active{% endif %}">
-                    <span class="nav-icon">◎</span> <span>Users</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span> <span>Users</span>
                 </a>
                 <a href="/admin/groups" class="{% if active_page == 'groups' %}active{% endif %}">
-                    <span class="nav-icon">◇</span> <span>Groups</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> <span>Groups</span>
                 </a>
+
+                <div class="nav-section">Content</div>
                 <a href="/admin/folders" class="{% if active_page == 'folders' %}active{% endif %}">
-                    <span class="nav-icon">▢</span> <span>Folders</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span> <span>Folders</span>
                 </a>
                 <a href="/admin/documents" class="{% if active_page == 'documents' %}active{% endif %}">
-                    <span class="nav-icon">▤</span> <span>Documents</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> <span>Documents</span>
                 </a>
                 <a href="/admin/departments" class="{% if active_page == 'departments' %}active{% endif %}">
-                    <span class="nav-icon">◎</span> <span>Departments</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22V12h6v10"/><path d="M12 7h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/></svg></span> <span>Departments</span>
                 </a>
 
                 <div class="nav-divider"></div>
 
+                <div class="nav-section">Assistant</div>
                 <a href="/admin/chat" class="{% if active_page == 'chat' %}active{% endif %}">
-                    <span class="nav-icon">▸</span> <span>Chat</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> <span>Chat</span>
                 </a>
                 <a href="/" target="_blank">
-                    <span class="nav-icon">○</span> <span>Public Chat</span>
+                    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span> <span>Public Chat</span>
                 </a>
             </nav>
 
             <div class="sidebar-footer">
                 <div class="user-info">
                     <div class="user-avatar" id="userAvatar">A</div>
-                    <div>
+                    <div style="min-width:0; flex:1;">
                         <span class="user-role" id="userRole"></span>
                         <span class="user-email" id="userEmail"></span>
                     </div>
                 </div>
                 <button class="logout-btn" onclick="logout()">Sign Out</button>
+                <div style="margin-top:8px; font-size:10px; color:var(--text-faint); text-align:center; line-height:1.4;">
+                    Black & Red • Secure RBAC
+                </div>
             </div>
         </aside>
 
         <main class="xp-main">
             <header class="xp-main-header">
                 {% block header %}{% endblock %}
+                <div class="header-actions">
+                    <span class="kbd" id="hdrRoleBadge" style="display:none"></span>
+                </div>
             </header>
             <div class="xp-main-content animate-in">
                 {% block content %}{% endblock %}
@@ -71,13 +85,17 @@
         </main>
     </div>
 
+    <div class="toast" id="toast"></div>
+
     <script>
         const user = JSON.parse(localStorage.getItem('user') || 'null');
         if (!user) { window.location.href = '/admin/login'; }
         else {
-            document.getElementById('userRole').textContent = user.role.replace('_',' ');
-            document.getElementById('userEmail').textContent = user.email;
-            document.getElementById('userAvatar').textContent = (user.full_name || user.email)[0].toUpperCase();
+            document.getElementById('userRole').textContent = (user.role || '').replace('_',' ');
+            document.getElementById('userEmail').textContent = user.email || '';
+            document.getElementById('userAvatar').textContent = (user.full_name || user.email || 'A')[0].toUpperCase();
+            const b = document.getElementById('hdrRoleBadge');
+            if (b) { b.textContent = (user.role||'').replace('_',' '); b.style.display='inline-flex'; }
         }
         function logout() {
             localStorage.removeItem('token');
@@ -85,15 +103,31 @@
             window.location.href = '/admin/login';
         }
         function authFetch(url, opts = {}) {
+            const isFormData = opts.body instanceof FormData;
             return fetch(url, {
                 ...opts,
                 headers: {
                     'Authorization': 'Bearer ' + localStorage.getItem('token'),
-                    'Content-Type': 'application/json',
+                    ...(isFormData ? {} : {'Content-Type': 'application/json'}),
                     ...(opts.headers || {})
                 }
             }).then(r => { if (r.status === 401) { logout(); } return r; });
         }
+        function toast(msg, type='ok') {
+            const c = document.getElementById('toast');
+            const el = document.createElement('div');
+            el.className = 'toast-item ' + (type==='err'?'err': type==='ok'?'ok':'');
+            el.textContent = msg;
+            c.appendChild(el);
+            setTimeout(()=> el.remove(), 3800);
+        }
+        // Close modals on backdrop click / Esc
+        document.addEventListener('click', (e)=>{
+            if (e.target.classList.contains('xp-modal')) e.target.style.display='none';
+        });
+        document.addEventListener('keydown', (e)=>{
+            if (e.key==='Escape') document.querySelectorAll('.xp-modal').forEach(m=> m.style.display='none');
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>

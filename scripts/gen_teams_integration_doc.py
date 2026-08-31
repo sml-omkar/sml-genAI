@@ -1,4 +1,4 @@
-"""Generate a step-by-step PDF guide for integrating Cyprus AI as a Microsoft Teams bot."""
+"""Generate a step-by-step PDF guide for integrating EthosAI as a Microsoft Teams bot."""
 
 import os
 from reportlab.lib.pagesizes import A4
@@ -12,7 +12,7 @@ from reportlab.platypus import (
 )
 from reportlab.platypus import HRFlowable
 
-OUT = os.path.join(os.path.dirname(__file__), "CyprusAI_Teams_Integration_Guide.pdf")
+OUT = os.path.join(os.path.dirname(__file__), "EthosAI_Teams_Integration_Guide.pdf")
 
 ACCENT = colors.HexColor("#1f6fb2")
 CODEBG = colors.HexColor("#f4f4f4")
@@ -22,7 +22,7 @@ doc = SimpleDocTemplate(
     pagesize=A4,
     leftMargin=22*mm, rightMargin=22*mm,
     topMargin=20*mm, bottomMargin=20*mm,
-    title="Cyprus AI - Microsoft Teams Integration Guide",
+    title="EthosAI - Microsoft Teams Integration Guide",
     author="SML Engineering",
 )
 
@@ -80,14 +80,14 @@ def code_block(text):
 
 story = []
 
-story.append(Paragraph("Cyprus AI — Microsoft Teams Integration Guide", title_style))
+story.append(Paragraph("EthosAI — Microsoft Teams Integration Guide", title_style))
 story.append(Paragraph("Step-by-step instructions to make the policy chatbot available to employees in Microsoft Teams", subtitle_style))
 story.append(HRFlowable(width="100%", thickness=1, color=ACCENT, spaceAfter=12))
 
 # ---------------------------------------------------------------- Overview
 story.append(Paragraph("Overview", h2))
 story.append(Paragraph(
-    "Cyprus AI is a FastAPI web service that exposes a bot endpoint at <b>/api/messages</b> "
+    "EthosAI is a FastAPI web service that exposes a bot endpoint at <b>/api/messages</b> "
     "(see <font face='Courier'>app/bot/bot_handler.py</font>). To let employees add the bot to their "
     "Teams chat, we need to register it in Azure, create an Azure Bot resource, deploy the service "
     "behind a public HTTPS endpoint, package a Teams app, and publish that app to the tenant. "
@@ -103,7 +103,7 @@ story.append(Paragraph("Step 1 — Register a Bot App in Azure AD (Entra ID)", s
 story.append(numbered([
     "Go to <b>https://portal.azure.com</b> and sign in with an administrative account.",
     "Navigate to <b>Microsoft Entra ID &rarr; App registrations &rarr; + New registration</b>.",
-    "Set the <b>Name</b> to <b>Cyprus AI Bot</b>.",
+    "Set the <b>Name</b> to <b>EthosAI Bot</b>.",
     "Under <b>Supported account types</b>, choose <b>Accounts in this organizational directory only</b> "
     "(single tenant), since this is for your company only.",
     "Click <b>Register</b>.",
@@ -131,7 +131,7 @@ story.append(t1)
 story.append(Spacer(1, 6))
 story.append(numbered([
     "In the left menu, open <b>Certificates &amp; secrets &rarr; + New client secret</b>.",
-    "Give it a description (e.g. <font face='Courier'>cyprus-bot-secret</font>) and an expiry, then click <b>Add</b>.",
+    "Give it a description (e.g. <font face='Courier'>ethos-bot-secret</font>) and an expiry, then click <b>Add</b>.",
     "<b>Immediately copy the Value</b> — it is shown only once. This is the bot password.",
     "Add this value to <b>.env</b> as <b>MicrosoftAppPassword</b>.",
 ]))
@@ -141,7 +141,7 @@ story.append(Paragraph("Step 2 — Create the Azure Bot Resource", step_style))
 story.append(numbered([
     "In the Azure portal, click <b>Create a resource</b> and search for <b>Azure Bot</b>.",
     "Choose <b>Azure Bot</b> and click <b>Create</b>.",
-    "Set a <b>Bot handle</b> (e.g. <font face='Courier'>cyprus-ai-bot</font>).",
+    "Set a <b>Bot handle</b> (e.g. <font face='Courier'>ethos-ai-bot</font>).",
     "For <b>Microsoft App ID</b>, select <b>Use existing app registration</b> and pick the app from Step 1.",
     "Complete the wizard and create the resource.",
     "Open the new bot resource, go to <b>Configuration</b>, and set the <b>Messaging endpoint</b> to:",
@@ -231,7 +231,7 @@ story.append(Paragraph(
     "<font face='Courier'>manifest.json</font> and two icon images. Create a directory and the manifest:", body))
 story.append(Spacer(1, 4))
 story.append(code_block(
-    "mkdir cyprus-ai-app && cd cyprus-ai-app\n"
+    "mkdir ethos-ai-app && cd ethos-ai-app\n"
     "nano manifest.json"
 ))
 story.append(Spacer(1, 6))
@@ -243,14 +243,14 @@ story.append(code_block(
     "  \"manifestVersion\": \"1.17\",\n"
     "  \"version\": \"1.0.0\",\n"
     "  \"id\": \"<some-unique-guid>\",\n"
-    "  \"packageName\": \"com.sml.cyprusai\",\n"
+    "  \"packageName\": \"com.sml.ethosai\",\n"
     "  \"developer\": {\n"
     "    \"name\": \"SML\",\n"
     "    \"websiteUrl\": \"https://<your-domain>\",\n"
     "    \"privacyUrl\": \"https://<your-domain>\",\n"
     "    \"termsOfUseUrl\": \"https://<your-domain>\"\n"
     "  },\n"
-    "  \"name\": { \"short\": \"Cyprus AI\", \"full\": \"Cyprus AI Policy Assistant\" },\n"
+    "  \"name\": { \"short\": \"EthosAI\", \"full\": \"EthosAI Policy Assistant\" },\n"
     "  \"description\": {\n"
     "    \"short\": \"Company policy chatbot\",\n"
     "    \"full\": \"Answers questions from company policy and procedure documents.\"\n"
@@ -279,7 +279,7 @@ story.append(Spacer(1, 6))
 story.append(Paragraph("Zip the folder — the resulting <font face='Courier'>.zip</font> is the installable Teams app package:", body))
 story.append(code_block(
     "cd ..\n"
-    "zip -r cyprus-ai.zip cyprus-ai-app"
+    "zip -r ethos-ai.zip ethos-ai-app"
 ))
 
 # ---------------------------------------------------------------- Step 6
@@ -292,14 +292,14 @@ story.append(Paragraph("6.1 Sideload (testing / small group)", h3))
 story.append(numbered([
     "In Teams, open the <b>Apps</b> store.",
     "Click <b>Manage your apps &rarr; Upload an app &rarr; Upload a custom app</b>.",
-    "Select <font face='Courier'>cyprus-ai.zip</font> and click <b>Add</b>.",
+    "Select <font face='Courier'>ethos-ai.zip</font> and click <b>Add</b>.",
 ]))
 story.append(Paragraph("6.2 Company-wide via Teams Admin Center (production)", h3))
 story.append(numbered([
     "Go to <b>https://admin.teams.microsoft.com</b> with a Teams administrator account.",
-    "Open <b>Teams apps &rarr; Manage apps &rarr; Upload new app</b> and upload <font face='Courier'>cyprus-ai.zip</font>.",
+    "Open <b>Teams apps &rarr; Manage apps &rarr; Upload new app</b> and upload <font face='Courier'>ethos-ai.zip</font>.",
     "Submit/publish the app; define an app setup policy so it appears for the relevant employees.",
-    "Employees then go to <b>Apps</b>, search <b>Cyprus AI</b>, click <b>Add</b>, and use it in a 1:1 chat.",
+    "Employees then go to <b>Apps</b>, search <b>EthosAI</b>, click <b>Add</b>, and use it in a 1:1 chat.",
 ]))
 
 # ---------------------------------------------------------------- Important
@@ -352,7 +352,7 @@ story.append(cl)
 story.append(Spacer(1, 12))
 story.append(Paragraph(
     "Once the app is published and users are mapped correctly, employees simply open Teams, find "
-    "Cyprus AI in the apps store, and add it to their chat to start asking policy questions.", body))
+    "EthosAI in the apps store, and add it to their chat to start asking policy questions.", body))
 
 doc.build(story)
 print(f"PDF written to {OUT}")

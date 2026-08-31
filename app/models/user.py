@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Enum, ForeignKey, Text
+    Column, String, Boolean, Integer, DateTime, Enum, ForeignKey, Text
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -45,6 +45,13 @@ class User(Base):
     department = Column(Enum(Department), nullable=False)
     role = Column(Enum(RoleType), nullable=False, default=RoleType.USER)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    # EthosAI chatbot access control (admin managed)
+    # chat_access_enabled: master switch to allow/deny the user's bot usage
+    # daily_token_limit: max total tokens the user may consume per rolling calendar
+    #   day (0 = unlimited). When an admin sets 0 the user has no cap.
+    chat_access_enabled = Column(Boolean, default=True, nullable=False, server_default="true")
+    daily_token_limit = Column(Integer, default=0, nullable=False, server_default="0")
 
     # Teams integration — AAD Object ID for mapping Teams users to DB users
     aad_object_id = Column(String(255), unique=True, nullable=True, index=True)

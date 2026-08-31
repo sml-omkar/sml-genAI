@@ -92,8 +92,33 @@ def _get_openai_client() -> OpenAI:
     return _openai_client
 
 
+# ---------------------------------------------------------------------------
+# Token usage tracking
+# A pipeline run accumulates usage across all its LLM calls. query_rag resets
+# this before starting and reads it at the end so the caller can attribute the
+# total token cost to the requesting user.
+# ---------------------------------------------------------------------------
+_token_usage = {"prompt": 0, "completion": 0, "calls": 0}
+
+
+def _reset_usage():
+    _token_usage["prompt"] = 0
+    _token_usage["completion"] = 0
+    _token_usage["calls"] = 0
+
+
+def get_usage() -> dict:
+    """Return accumulated token usage for the current pipeline run."""
+    return {
+        "prompt_tokens": _token_usage["prompt"],
+        "completion_tokens": _token_usage["completion"],
+        "total_tokens": _token_usage["prompt"] + _token_usage["completion"],
+        "llm_calls": _token_usage["calls"],
+    }
+
+
 def _llm_chat(messages: List[Dict], temperature: float = 0.3, max_tokens: int = 512) -> str:
-    """Call LLM with error handling."""
+    """Call LLM with error handling. Accumulates token usage for this run."""
     try:
         client = _get_openai_client()
         response = client.chat.completions.create(
@@ -102,6 +127,11 @@ def _llm_chat(messages: List[Dict], temperature: float = 0.3, max_tokens: int = 
             temperature=temperature,
             max_completion_tokens=max_tokens,
         )
+        # Record usage if reported by the provider
+        if getattr(response, "usage", None):
+            _token_usage["prompt"] += response.usage.prompt_tokens or 0
+            _token_usage["completion"] += response.usage.completion_tokens or 0
+        _token_usage["calls"] += 1
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"[AGENT] LLM error: {e}")
@@ -112,22 +142,25 @@ def _llm_chat(messages: List[Dict], temperature: float = 0.3, max_tokens: int = 
 # Step 1: Intent Router
 # ============================================================================
 
-ROUTER_SYSTEM = """You are an intent classifier for a company AI assistant called Cyprus AI.
+ROUTER_SYSTEM = """You are an intent classifier for a company AI assistant called EthosAI.
 
 Classify the user's question into ONE of these categories:
 - GREETING: Hello, hi, thanks, bye, good morning/afternoon/evening
-- CONVERSATIONAL: Jokes, small talk, opinions, general knowledge NOT related to company documents or policies. Also includes requests like "tell me a joke", "what's the weather", "sing a song"
-- DOCUMENT_QUERY: Questions that need specific information FROM company documents (policies, procedures, guidelines, rules, infrastructure, setup details)
+- CONVERSATIONAL: ONLY pure social chatter with no factual content — greetings-like pleasantries, jokes, small talk, "how are you", "sing a song". Use ONLY when the user is just being friendly.
+- DOCUMENT_QUERY: ANY question that asks for information, facts, or procedures — whether or not it is about company material. This includes general-knowledge questions like "who won the world cup", "what is the capital of France", and anything about policies, rules, or how to do something.
 - FOLLOWUP: Questions that reference previous conversation context (e.g., "tell me more", "what about X", "and the other one")
 - CLARIFICATION: Questions asking to explain something mentioned earlier
 
-Important: If the user is asking for entertainment, opinions, or general chat that has nothing to do with company policies or documents, classify as CONVERSATIONAL.
+Important rules:
+- If the user is asking for any factual information or general knowledge (news, sports, geography, science, etc.), classify as DOCUMENT_QUERY, NEVER as CONVERSATIONAL.
+- Only use CONVERSATIONAL when there is NO request for information at all — pure social pleasantry or humour.
+- Only use GREETING for a plain greeting with nothing else asked.
 
 Respond with ONLY the category name, nothing else."""
 
 GREETING_RESPONSES = {
     "hi": "Hi there! How can I help you today?",
-    "hello": "Hello! I'm Cyprus AI, your company policy assistant. What can I help you with?",
+    "hello": "Hello! I'm EthosAI, your company policy assistant. What can I help you with?",
     "hey": "Hey! What can I help you with?",
     "good morning": "Good morning! How can I assist you today?",
     "good afternoon": "Good afternoon! What can I help you with?",
@@ -136,7 +169,7 @@ GREETING_RESPONSES = {
     "thanks": "You're welcome! Let me know if you need anything else.",
     "thank you": "You're welcome! Happy to help anytime.",
     "bye": "Goodbye! Have a great day.",
-    "who are you": "I'm Cyprus AI -- your company policy assistant. I can answer questions about company policies, IT guidelines, HR procedures, and more.",
+    "who are you": "I'm EthosAI -- your company policy assistant. I can answer questions about company policies, IT guidelines, HR procedures, and more.",
     "what can you do": "I can help you with:\n- Company policies and procedures\n- IT guidelines and infrastructure info\n- HR policies (leave, benefits, etc.)\n- Any document-based questions\n\nJust type your question!",
 }
 
@@ -304,7 +337,7 @@ async def evaluate_chunks(
 # Step 4: Answer Generator
 # ============================================================================
 
-GENERATOR_SYSTEM = """You are Cyprus AI, an employee-help assistant for SML. You answer questions using ONLY the company-document context given below — nothing else. Everything you say must be grounded in that context.
+GENERATOR_SYSTEM = """You are EthosAI, an employee-help assistant for SML. You answer questions using ONLY the company-document context given below — nothing else. Everything you say must be grounded in that context.
 
 DECIDE, then ANSWER:
 Step A — Are the provided facts enough to answer?
@@ -389,7 +422,7 @@ def format_history(history: List[Dict]) -> str:
         return ""
     lines = ["Previous conversation:"]
     for msg in history[-10:]:
-        role = "Employee" if msg["role"] == "user" else "Cyprus AI"
+        role = "Employee" if msg["role"] == "user" else "EthosAI"
         content = msg["content"][:200]
         lines.append(f"{role}: {content}")
     return "\n".join(lines)
@@ -479,7 +512,7 @@ Follow the instructions in your system prompt. Decide the appropriate response (
 # History-based answering (follow-ups like "in short", "what did I ask?")
 # ============================================================================
 
-HISTORY_ANSWER_SYSTEM = """You are Cyprus AI, a friendly company assistant.
+HISTORY_ANSWER_SYSTEM = """You are EthosAI, a friendly company assistant.
 
 The employee is referring to your EARLIER REPLY in this conversation — for example asking you to
 summarize it, shorten it, repeat it, explain a part of it, or tell them what they asked.
@@ -502,7 +535,7 @@ async def _answer_from_history(
     """
     recent = chat_history[-6:]
     convo = "\n".join(
-        f"{'Employee' if m['role'] == 'user' else 'Cyprus AI'}: {m['content'][:1200]}"
+        f"{'Employee' if m['role'] == 'user' else 'EthosAI'}: {m['content'][:1200]}"
         for m in recent
     )
     messages = [
@@ -520,6 +553,34 @@ async def _answer_from_history(
 # ============================================================================
 
 async def query_rag(
+    question: str,
+    department: Optional[str] = None,
+    chat_history: Optional[List[Dict]] = None,
+    n_results: int = None,
+    min_relevance: float = 0.50,
+    debug: bool = False,
+    include_usage: bool = False,
+) -> Dict:
+    """
+    Agentic RAG pipeline. Public entry point; tracks token usage across the run.
+    When ``include_usage`` is True, the returned dict includes a "usage" key with
+    prompt/completion/total tokens consumed for this request.
+    """
+    _reset_usage()
+    result = await _query_rag_impl(
+        question=question,
+        department=department,
+        chat_history=chat_history,
+        n_results=n_results,
+        min_relevance=min_relevance,
+        debug=debug,
+    )
+    if include_usage:
+        result["usage"] = get_usage()
+    return result
+
+
+async def _query_rag_impl(
     question: str,
     department: Optional[str] = None,
     chat_history: Optional[List[Dict]] = None,
@@ -559,7 +620,7 @@ async def query_rag(
     # ---- Handle Greeting ----
     if intent == "GREETING":
         q_lower = question.strip().lower().rstrip("!?.")
-        answer = "Hey! I'm Cyprus AI. Ask me anything about company policies, IT guidelines, HR procedures, or any other company documents."
+        answer = "Hey! I'm EthosAI. Ask me anything about company policies, IT guidelines, HR procedures, or any other company documents."
         for key, response in GREETING_RESPONSES.items():
             if key in q_lower:
                 answer = response
@@ -573,12 +634,26 @@ async def query_rag(
         return result
     
     # ---- Handle Conversational (no docs needed) ----
+    # IMPORTANT: EthosAI must only answer from company documents. For general
+    # chit-chat we stay friendly but NEVER provide factual/world-knowledge
+    # answers (that leaks information outside our documents). We either keep it
+    # to neutral pleasantries or politely redirect to company topics.
     if intent == "CONVERSATIONAL":
         messages = [
-            {"role": "system", "content": "You are Cyprus AI, a friendly company assistant. Answer conversationally in 1-3 sentences."},
+            {"role": "system", "content": (
+                "You are EthosAI, SML's company assistant. You ONLY answer from company "
+                "documents, so you must NEVER provide general knowledge or factual answers about "
+                "the outside world (news, sports, geography, celebrities, etc.).\n"
+                "When someone says a simple greeting or pleasantry (hi, thanks, how are you), "
+                "respond briefly and warmly and offer to help with company policies.\n"
+                "When someone asks a factual or general-knowledge question that is NOT about "
+                "company documents, do NOT answer it. Instead say you're here to help with "
+                "company policies, and ask what they'd like to look up.\n"
+                "Keep replies to 1-2 sentences."
+            )},
             {"role": "user", "content": question},
         ]
-        answer = _llm_chat(messages, temperature=0.7, max_tokens=200)
+        answer = _llm_chat(messages, temperature=0.4, max_tokens=200)
         state.answer = answer
         state.add_step("generate", question, answer)
         result = {"answer": answer, "sources": [], "chunks_retrieved": 0}

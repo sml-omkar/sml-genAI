@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyprus AI — Login</title>
+    <title>EthosAI — Login</title>
+    <link rel="icon" type="image/png" href="/static/sml.png">
+    <link rel="apple-touch-icon" href="/static/sml.png">
     <link rel="stylesheet" href="/static/style.css">
     <style>
         body {
@@ -42,17 +44,17 @@
         .login-logo {
             width: 80px;
             height: 80px;
-            background: #8B0000;
+            background: #fff;
             border-radius: 50%;
             margin: 0 auto 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
+            overflow: hidden;
+            padding: 6px;
             border: 3px solid #CC0000;
         }
+        .login-logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 50%; }
         .login-title {
             font-size: 22px;
             color: #8B0000;
@@ -125,15 +127,15 @@
     <div class="login-container">
         <div class="login-card">
             <div class="login-titlebar">
-                <span>Cyprus AI — Log On</span>
+                <span>EthosAI — Log On</span>
                 <div>
                     <span style="cursor:pointer">_</span>
                     <span style="cursor:pointer;margin-left:4px">□</span>
                 </div>
             </div>
             <div class="login-body">
-                <div class="login-logo">C</div>
-                <h1 class="login-title">Cyprus AI Bot</h1>
+                <div class="login-logo"><img src="/static/sml.png" alt="SML Logo"></div>
+                <h1 class="login-title">EthosAI Bot</h1>
                 <p class="login-subtitle">Enter your credentials to access the admin panel</p>
 
                 <form id="loginForm" onsubmit="return handleLogin(event)">
@@ -150,7 +152,7 @@
                 </form>
 
                 <div class="login-info">
-                    <strong>Employees:</strong> Chat with Cyprus directly in Microsoft Teams.<br>
+                    <strong>Employees:</strong> Chat with EthosAI directly in Microsoft Teams.<br>
                     This portal is for administrators only.
                 </div>
             </div>
@@ -198,7 +200,7 @@
                 if (role === 'super_admin' || role === 'dept_admin') {
                     window.location.href = '/admin/dashboard';
                 } else {
-                    err.textContent = 'Regular users should use Cyprus AI in Microsoft Teams.';
+                    err.textContent = 'Regular users should use EthosAI in Microsoft Teams.';
                     err.style.display = 'block';
                 }
             } catch (e) {

@@ -7,7 +7,7 @@ Conversations auto-expire after 24 hours.
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum as SAEnum, Index
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum as SAEnum, Index, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import enum
@@ -44,6 +44,12 @@ class Message(Base):
     role = Column(SAEnum(MessageRole, name="message_role", create_constraint=True), nullable=False)
     content = Column(Text, nullable=False)
     sources = Column(Text, nullable=True)  # JSON string of sources for assistant messages
+
+    # Token usage tracking (assistant messages — how many tokens the LLM consumed)
+    tokens_in = Column(Integer, nullable=True, default=0)
+    tokens_out = Column(Integer, nullable=True, default=0)
+    model_used = Column(String(100), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")

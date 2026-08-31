@@ -3,7 +3,7 @@
   "manifestVersion": "1.17",
   "version": "1.0.0",
   "id": "CHANGE_ME_APP_GUID",
-  "packageName": "com.sml.cyprusai",
+  "packageName": "com.sml.ethosai",
   "developer": {
     "name": "Sanghvi Movers Limited",
     "websiteUrl": "CHANGE_ME_DOMAIN",
@@ -11,12 +11,12 @@
     "termsOfUseUrl": "CHANGE_ME_DOMAIN"
   },
   "name": {
-    "short": "Cyprus AI",
-    "full": "Cyprus AI Policy Assistant"
+    "short": "EthosAI",
+    "full": "EthosAI Policy Assistant"
   },
   "description": {
     "short": "Company policy chatbot",
-    "full": "Cyprus AI answers your questions about company policies, HR procedures, IT guidelines and other documents – quickly and with accurate, sourced answers."
+    "full": "EthosAI answers your questions about company policies, HR procedures, IT guidelines and other documents – quickly and with accurate, sourced answers."
   },
   "icons": {
     "color": "color.png",

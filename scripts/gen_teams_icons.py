@@ -1,4 +1,4 @@
-"""Generate Microsoft Teams app icons for Cyprus AI.
+"""Generate Microsoft Teams app icons for EthosAI.
 
 Creates:
   color.png   192x192  (filled, transparent background)

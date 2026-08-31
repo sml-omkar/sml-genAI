@@ -61,6 +61,9 @@ class MemoryService:
         role: str,
         content: str,
         sources: Optional[List[Dict]] = None,
+        tokens_in: Optional[int] = 0,
+        tokens_out: Optional[int] = 0,
+        model_used: Optional[str] = None,
     ) -> Message:
         """Add a message to a conversation."""
         async with AsyncSessionLocal() as db:
@@ -69,6 +72,9 @@ class MemoryService:
                 role=MessageRole(role),
                 content=content,
                 sources=json.dumps(sources) if sources else None,
+                tokens_in=tokens_in or 0,
+                tokens_out=tokens_out or 0,
+                model_used=model_used,
             )
             db.add(msg)
 

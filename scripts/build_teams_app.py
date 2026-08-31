@@ -1,8 +1,8 @@
-"""Build the installable Cyprus AI Teams app package (.zip).
+"""Build the installable EthosAI Teams app package (.zip).
 
 Fills placeholders in teams_app/manifest.template.json using the settings in
 .env (MicrosoftAppId, host domain) and/or CLI overrides, then zips
-manifest.json + color.png + outline.png into teams_app/cyprus-ai.zip.
+manifest.json + color.png + outline.png into teams_app/ethos-ai.zip.
 """
 
 import argparse
@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 TEAMS_DIR = os.path.join(REPO, "teams_app")
 TEMPLATE = os.path.join(TEAMS_DIR, "manifest.template.json")
-OUT_ZIP = os.path.join(TEAMS_DIR, "cyprus-ai.zip")
+OUT_ZIP = os.path.join(TEAMS_DIR, "ethos-ai.zip")
 
 sys.path.insert(0, REPO)
 
@@ -78,8 +78,8 @@ def build(domain=None, bot_id=None, app_id=None):
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Build Cyprus AI Teams app package")
-    p.add_argument("--domain", help="Public HTTPS base URL, e.g. https://cyprus.example.com")
+    p = argparse.ArgumentParser(description="Build EthosAI Teams app package")
+    p.add_argument("--domain", help="Public HTTPS base URL, e.g. https://ethos.example.com")
     p.add_argument("--bot-id", help="Bot Application (client) ID (overrides .env)")
     p.add_argument("--app-id", help="Teams app package id/GUID (default: random)")
     args = p.parse_args()

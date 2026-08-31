@@ -122,6 +122,40 @@ class PolicyBot(TeamsActivityHandler):
             await turn_context.send_activity(Activity(attachments=[attachment]))
             return
 
+        # --- Server-side user gating ---
+        # Only users registered (and active) in the database may query the LLM.
+        if db_user is None:
+            card = build_error_card(
+                "Your account is not registered with EthosAI. "
+                "Please ask your administrator to add your email before using this assistant."
+            )
+            attachment = create_attachment(card)
+            await turn_context.send_activity(Activity(attachments=[attachment]))
+            return
+
+        # Admin-managed access control (enable/disable) + daily token limit.
+        try:
+            from app.admin.access import check_user_can_use_chat
+            from app.database import AsyncSessionLocal
+
+            async with AsyncSessionLocal() as db:
+                # Reload user within this session so relationships/columns are fresh
+                db_user = await db.get(User, db_user.id)
+                allowed, reason = await check_user_can_use_chat(db, db_user)
+            if not allowed:
+                card = build_error_card(reason)
+                attachment = create_attachment(card)
+                await turn_context.send_activity(Activity(attachments=[attachment]))
+                return
+        except Exception as e:
+            print(f"[BOT] Access check failed: {e}")
+            card = build_error_card(
+                "I could not verify your access right now. Please try again later."
+            )
+            attachment = create_attachment(card)
+            await turn_context.send_activity(Activity(attachments=[attachment]))
+            return
+
         # --- Query the RAG pipeline ---
         try:
             from app.rag.agent import query_rag
@@ -138,7 +172,7 @@ class PolicyBot(TeamsActivityHandler):
             teams_conv_id = turn_context.activity.conversation.id
             conv = await memory.get_or_create_conversation(
                 conversation_id=teams_conv_id,
-                user_id=str(db_user.id) if db_user else None,
+                user_id=str(db_user.id),
             )
             conv_id = str(conv.id)
 
@@ -156,17 +190,22 @@ class PolicyBot(TeamsActivityHandler):
                 question=text,
                 department=user_dept,
                 chat_history=history,
+                include_usage=True,
             )
 
             answer = result.get("answer", "")
             sources = result.get("sources", [])
             chunks_count = result.get("chunks_retrieved", 0)
+            usage = result.get("usage", {})
 
             await memory.add_message(
                 conversation_id=conv_id,
                 role="assistant",
                 content=answer,
                 sources=sources,
+                tokens_in=usage.get("prompt_tokens", 0),
+                tokens_out=usage.get("completion_tokens", 0),
+                model_used=settings.OPENAI_MODEL,
             )
 
             if chunks_count == 0:

@@ -18,6 +18,8 @@ class UserResponse(BaseModel):
     department: str
     role: str
     is_active: bool
+    chat_access_enabled: bool = True
+    daily_token_limit: int = 0
     created_at: datetime
 
     @field_validator('id', mode='before')
@@ -39,6 +41,8 @@ class UserCreateRequest(BaseModel):
     full_name: str
     department: str
     role: str = "user"
+    chat_access_enabled: bool = True
+    daily_token_limit: int = 0
 
 
 class UserUpdateRequest(BaseModel):
@@ -48,6 +52,8 @@ class UserUpdateRequest(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    chat_access_enabled: Optional[bool] = None
+    daily_token_limit: Optional[int] = None
 
 
 class DashboardStats(BaseModel):
@@ -56,5 +62,6 @@ class DashboardStats(BaseModel):
     total_documents: int
     total_chunks: int
     total_users: int
+    total_groups: int = 0
     documents_by_status: dict
     documents_by_department: dict

@@ -1,55 +1,438 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — Cyprus AI{% endblock %}
-{% block header %}<h2>Dashboard</h2>{% endblock %}
+{% block title %}Dashboard — EthosAI{% endblock %}
+{% block header %}
+<div class="header-left">
+    <h2><span class="hdr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span> Dashboard</h2>
+    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Overview of people, content and access control</div>
+</div>
+{% endblock %}
 {% block content %}
+
+<!-- KPI STATS -->
 <div class="stat-grid">
     <div class="stat-card c-blue">
+        <div class="kpi-top"><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><span class="pill" style="font-size:10px;">People</span></div>
         <div class="label">Total Users</div>
-        <div class="value" id="statUsers">-</div>
+        <div class="value" id="statUsers">—</div>
+        <div class="sub" id="statUsersSub">Across all departments</div>
     </div>
     <div class="stat-card c-purple">
+        <div class="kpi-top"><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><span class="pill" style="font-size:10px;">Access</span></div>
         <div class="label">Groups</div>
-        <div class="value" id="statGroups">-</div>
+        <div class="value" id="statGroups">—</div>
+        <div class="sub">RBAC collections</div>
     </div>
     <div class="stat-card c-green">
+        <div class="kpi-top"><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><span class="pill" style="font-size:10px;">Content</span></div>
         <div class="label">Folders</div>
-        <div class="value" id="statFolders">-</div>
+        <div class="value" id="statFolders">—</div>
+        <div class="sub">Department containers</div>
     </div>
     <div class="stat-card c-orange">
+        <div class="kpi-top"><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><span class="pill" style="font-size:10px;">Knowledge</span></div>
         <div class="label">Documents</div>
-        <div class="value" id="statDocs">-</div>
+        <div class="value" id="statDocs">—</div>
+        <div class="sub" id="statDocsSub">Indexed & ready</div>
     </div>
 </div>
 
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+<div style="display:grid; grid-template-columns: 1.35fr 0.85fr; gap:14px; margin-bottom:14px;">
     <div class="card">
-        <div class="card-header">Quick Guide</div>
-        <div style="font-size:12px; color:var(--text-secondary); line-height:2;">
-            <div style="margin-bottom:6px;"><strong style="color:var(--text);">1.</strong> Create groups and assign folders under <a href="/admin/groups">Groups</a></div>
-            <div style="margin-bottom:6px;"><strong style="color:var(--text);">2.</strong> Assign users to groups under <a href="/admin/groups">Groups</a></div>
-            <div style="margin-bottom:6px;"><strong style="color:var(--text);">3.</strong> Upload documents under <a href="/admin/documents">Documents</a></div>
-            <div><strong style="color:var(--text);">4.</strong> Employees visit <a href="/" target="_blank">Public Chat</a> → login → ask questions filtered by their groups</div>
+        <div class="card-header">Quick actions <small>Most common tasks</small></div>
+        <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:10px;">
+            <a href="/admin/users" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
+                <div class="kpi-icon" style="background:var(--accent-dim); border-color:var(--accent-border); color:var(--accent); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+                <div><div style="font-weight:700; font-size:13px;">Add users</div><div style="font-size:11px; color:var(--text-muted);">Single or bulk CSV upload</div></div>
+            </a>
+            <a href="/admin/groups" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
+                <div class="kpi-icon" style="background:var(--purple-dim); border-color:rgba(167,139,250,0.22); color:var(--purple); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                <div><div style="font-weight:700; font-size:13px;">Manage groups</div><div style="font-size:11px; color:var(--text-muted);">Connect users ↔ folders</div></div>
+            </a>
+            <a href="/admin/documents" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
+                <div class="kpi-icon" style="background:var(--blue-dim); border-color:rgba(56,189,248,0.22); color:var(--blue); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                <div><div style="font-weight:700; font-size:13px;">Upload documents</div><div style="font-size:11px; color:var(--text-muted);">Policies, guides, docs</div></div>
+            </a>
+            <a href="/" target="_blank" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
+                <div class="kpi-icon" style="background:var(--green-dim); border-color:var(--green-border); color:var(--green); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                <div><div style="font-weight:700; font-size:13px;">Test chatbot</div><div style="font-size:11px; color:var(--text-muted);">Public chat • group-filtered</div></div>
+            </a>
+        </div>
+        <div class="divider"></div>
+        <div style="font-size:11.5px; color:var(--text-secondary); line-height:1.7;">
+            <strong style="color:var(--text);">How RBAC works:</strong> Users get access <em>only</em> through <strong>Groups</strong>. A Group bundles users + folders. When a user asks the chatbot, EthosAI filters documents to the folders their groups allow.
+            Super Admin sees everything; Dept Admin manages own department; User queries only assigned folders.
         </div>
     </div>
     <div class="card">
-        <div class="card-header">System Info</div>
-        <div style="font-size:12px; color:var(--text-secondary); line-height:2;">
-            <div><strong style="color:var(--text);">LLM:</strong> gpt-4o-mini (OpenAI)</div>
-            <div><strong style="color:var(--text);">Embeddings:</strong> text-embedding-3-small (OpenAI)</div>
-            <div><strong style="color:var(--text);">Vector DB:</strong> ChromaDB</div>
-            <div><strong style="color:var(--text);">Database:</strong> PostgreSQL 16</div>
+        <div class="card-header">System <small>Runtime</small></div>
+        <div style="display:grid; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
+                <div><div style="font-weight:700; font-size:12.5px;">LLM</div><div style="font-size:11px; color:var(--text-muted);">RAG pipeline</div></div><span class="badge badge-ready">OpenAI</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
+                <div><div style="font-weight:700; font-size:12.5px;">Embeddings</div><div style="font-size:11px; color:var(--text-muted);">Vector search</div></div><span class="badge badge-hr">nomic-embed-text</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
+                <div><div style="font-weight:700; font-size:12.5px;">Vector DB</div><div style="font-size:11px; color:var(--text-muted);">ChromaDB</div></div><span class="badge badge-it">Chroma</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
+                <div><div style="font-weight:700; font-size:12.5px;">Database</div><div style="font-size:11px; color:var(--text-muted);">PostgreSQL 16</div></div><span class="badge badge-ready">Connected</span>
+            </div>
+        </div>
+        <div class="help" style="margin-top:10px;">Auth is JWT • Teams bot via <span class="kbd">/api/messages</span> • EC2-hosted</div>
+    </div>
+</div>
+
+<!-- TOKEN USAGE -->
+<div class="card" style="margin-bottom:14px;">
+    <div class="card-header">LLM Token Usage <small>Cost & utilization</small></div>
+    <div class="stat-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:10px;">
+        <div class="stat-card c-orange" style="padding:14px;">
+            <div class="label">Total Tokens</div>
+            <div class="value" id="statTokens" style="font-size:22px;">—</div>
+            <div class="sub">All time</div>
+        </div>
+        <div class="stat-card c-blue" style="padding:14px;">
+            <div class="label">Total Questions</div>
+            <div class="value" id="statQuestions" style="font-size:22px;">—</div>
+            <div class="sub">Assistant replies</div>
+        </div>
+        <div class="stat-card c-green" style="padding:14px;">
+            <div class="label">Active LLM Users</div>
+            <div class="value" id="statUsersWithUsage" style="font-size:22px;">—</div>
+            <div class="sub">With usage</div>
+        </div>
+        <div class="stat-card c-purple" style="padding:14px;">
+            <div class="label">Top User</div>
+            <div class="value" id="statTopUser" style="font-size:13px; line-height:1.35; word-break:break-word; min-height:28px;">—</div>
+            <div class="sub">Highest consumption</div>
+        </div>
+    </div>
+    <div style="margin-top:6px;">
+        <div class="card-header" style="border:none; padding-bottom:8px; margin-bottom:0;">Tokens per Day <small>Last 14 days</small></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px;">
+            <canvas id="usageChart" height="140" style="width:100%;"></canvas>
         </div>
     </div>
 </div>
+
+<div class="card" style="margin-bottom:14px;">
+    <div class="card-header">Token Usage by User <small>Per-user cost breakdown</small></div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Department</th>
+                    <th style="text-align:right">Questions</th>
+                    <th style="text-align:right">Prompt</th>
+                    <th style="text-align:right">Completion</th>
+                    <th style="text-align:right">Total</th>
+                </tr>
+            </thead>
+            <tbody id="usageTable">
+                <tr><td colspan="6"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>Loading token usage…</div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:14px;">
+    <div class="card-header">
+        <span>Total Token Usage — By User <small style="font-weight:400; color:var(--text-muted); margin-left:6px;">All-time distribution • prompt + completion</small></span>
+        <span id="totalTokensLabel" class="mono" style="font-size:12px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:5px 10px; border-radius:20px;"></span>
+    </div>
+    <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 10px; position:relative;">
+        <canvas id="userChart" height="220" style="width:100%; display:block;"></canvas>
+        <div id="userChartEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
+            <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12 2.69 12"/><path d="M12 12 12 2"/></svg></div>No usage yet — bars appear after users chat.
+        </div>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); align-items:center;">
+        <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent); display:inline-block;"></span> Total tokens</span>
+        <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--blue); display:inline-block;"></span> Prompt (lighter)</span>
+        <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--purple); display:inline-block;"></span> Completion (darker)</span>
+        <span style="margin-left:auto; color:var(--text-faint);" class="help">Hover a bar for exact tokens</span>
+    </div>
+</div>
+
+<!-- RBAC OVERVIEW -->
+<div class="card">
+    <div class="card-header">RBAC Overview <small>Roles, scopes & permissions — who can do what</small></div>
+    <div class="rbac-grid" id="rbacCards">
+        <div class="role-card r-super"><div style="height:48px; display:grid; place-items:center; color:var(--text-muted);">Loading roles…</div></div>
+    </div>
+    <div style="margin-top:14px;" class="table-wrap">
+        <table class="perm-table" id="permTable">
+            <thead><tr><th>Permission</th><th>Super Admin</th><th>Dept Admin</th><th>User</th></tr></thead>
+            <tbody><tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:18px;">Loading…</td></tr></tbody>
+        </table>
+    </div>
+    <div class="help">Groups are the RBAC glue: <span class="kbd">User</span> → <span class="kbd">Group</span> → <span class="kbd">Folder</span> → <span class="kbd">Document</span>. Chatbot filters by group access at query time.</div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    authFetch('/api/admin/dashboard').then(r=>r.json()).then(d=>{
-        document.getElementById('statUsers').textContent = d.total_users;
-        document.getElementById('statGroups').textContent = d.total_groups;
-        document.getElementById('statFolders').textContent = d.total_folders;
-        document.getElementById('statDocs').textContent = d.total_documents;
-    });
+    function fmt(n) { if (n===null||n===undefined) return '0'; return Number(n).toLocaleString(); }
+
+    async function loadOverview() {
+        const r = await authFetch('/api/admin/dashboard');
+        const d = await r.json();
+        document.getElementById('statUsers').textContent = fmt(d.total_users);
+        document.getElementById('statGroups').textContent = fmt(d.total_groups ?? 0);
+        document.getElementById('statFolders').textContent = fmt(d.total_folders);
+        document.getElementById('statDocs').textContent = fmt(d.total_documents);
+        document.getElementById('statDocsSub').textContent = `${fmt(d.total_chunks ?? 0)} chunks indexed`;
+    }
+
+    async function loadRBAC() {
+        try {
+            const r = await authFetch('/api/admin/rbac/overview');
+            const d = await r.json();
+            const cards = document.getElementById('rbacCards');
+            cards.innerHTML = d.roles.map(rr => {
+                const cls = rr.value==='super_admin' ? 'r-super' : rr.value==='dept_admin' ? 'r-dept' : 'r-user';
+                return `<div class="role-card ${cls}">
+                    <h4>${rr.label} <span class="badge badge-${rr.value}" style="margin-left:6px; font-size:9px;">${rr.count} users</span></h4>
+                    <div class="scope">${rr.scope}</div>
+                    <ul>${rr.can.map(c=> `<li>${c}</li>`).join('')}</ul>
+                </div>`;
+            }).join('');
+
+            const p = d.permissions;
+            const row = (label, key) => {
+                const v = (obj)=> obj[key]===true ? '<span class="perm-yes">✓ Yes</span>' : obj[key]===false ? '<span class="perm-no">—</span>' : `<span class="perm-partial">${obj[key]}</span>`;
+                return `<tr><td><strong>${label}</strong></td><td>${v(p.super_admin)}</td><td>${v(p.dept_admin)}</td><td>${v(p.user)}</td></tr>`;
+            };
+            document.querySelector('#permTable tbody').innerHTML =
+                row('Create','create') + row('Read','read') + row('Update','update') + row('Delete','delete') + row('Upload docs','upload') + row('Manage users','manage_users') + row('Manage groups','manage_groups');
+        } catch(e) { /* silent */ }
+    }
+
+    let _userChartTip = null;
+    let _userChartRows = [];
+
+    function drawUserChart(users) {
+        const canvas = document.getElementById('userChart');
+        const empty = document.getElementById('userChartEmpty');
+        const label = document.getElementById('totalTokensLabel');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const css = getComputedStyle(document.documentElement);
+        const accent = css.getPropertyValue('--accent').trim() || '#ff2d2d';
+        const blue = css.getPropertyValue('--blue').trim() || '#38bdf8';
+        const purple = css.getPropertyValue('--purple').trim() || '#a78bfa';
+        const muted = css.getPropertyValue('--text-muted').trim() || '#70707a';
+        const text = css.getPropertyValue('--text').trim() || '#f2f2f5';
+
+        const total = users.reduce((s,u)=> s + (u.total_tokens||0), 0);
+        if (label) label.textContent = total ? `Σ ${fmt(total)} tokens` : '';
+
+        if (!users || users.length === 0) {
+            if (empty) empty.style.display = 'grid';
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            _userChartRows = [];
+            return;
+        }
+        if (empty) empty.style.display = 'none';
+
+        // Take top 10 by total_tokens (already sorted desc by API)
+        const top = users.slice(0, 10);
+        const max = Math.max(1, ...top.map(u=> u.total_tokens));
+
+        // Dynamic height
+        const rowH = 32;
+        const padTop = 8;
+        const needed = top.length * rowH + padTop + 14;
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = canvas.clientWidth || 600;
+        const cssH = Math.max(220, needed);
+        canvas.style.height = cssH + 'px';
+        canvas.width = cssW * dpr;
+        canvas.height = cssH * dpr;
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.clearRect(0,0,cssW, cssH);
+
+        const leftW = 150;
+        const rightW = 88;
+        const barX = leftW;
+        const barW = Math.max(60, cssW - leftW - rightW - 10);
+        const barH = 14;
+
+        _userChartRows = [];
+
+        top.forEach((u, i) => {
+            const y = padTop + i * rowH;
+            const cy = y + rowH/2;
+
+            // Dept color dot
+            const deptColor = u.department==='hr' ? blue : u.department==='it' ? purple : u.department==='finance' ? '#fb923c' : accent;
+            ctx.fillStyle = deptColor;
+            ctx.beginPath(); ctx.arc(10, cy, 5, 0, Math.PI*2); ctx.fill();
+
+            // Name + email truncated
+            ctx.fillStyle = text;
+            ctx.font = '600 12px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            const name = (u.full_name || u.email || 'N/A');
+            const short = name.length > 18 ? name.slice(0,17) + '…' : name;
+            ctx.fillText(short, 20, cy - 4);
+
+            ctx.fillStyle = muted;
+            ctx.font = '11px Inter, sans-serif';
+            const emailShort = (u.email||'').length > 22 ? u.email.slice(0,21)+'…' : u.email;
+            ctx.fillText(emailShort, 20, cy + 9);
+
+            // Bar background
+            const len = Math.max(2, (u.total_tokens / max) * barW);
+            const bx = barX;
+            const by = cy - barH/2;
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, barW, barH, 7); ctx.fill(); }
+            else { ctx.fillRect(bx, by, barW, barH); }
+
+            // Stacked: prompt + completion
+            const promptLen = u.total_tokens ? (u.prompt_tokens / u.total_tokens) * len : 0;
+            const compLen = len - promptLen;
+
+            // Prompt segment (blue-ish lighter)
+            if (promptLen > 0) {
+                ctx.fillStyle = blue + 'CC';
+                if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, promptLen, barH, 7); ctx.fill(); }
+                else ctx.fillRect(bx, by, promptLen, barH);
+            }
+            // Completion segment (accent / purple)
+            if (compLen > 0.5) {
+                ctx.fillStyle = accent;
+                const cx = bx + promptLen;
+                // Need to clip if both segments to keep rounded ends correct — simple rect
+                if (ctx.roundRect) {
+                    const r = 7;
+                    if (promptLen < 2) { // only completion
+                        ctx.beginPath(); ctx.roundRect(cx, by, compLen, barH, r); ctx.fill();
+                    } else { // right part with right-rounded only — draw rect + cover left edge
+                        ctx.fillRect(cx, by, compLen, barH);
+                        // round right end
+                        ctx.beginPath(); ctx.arc(cx+compLen - r, by + barH/2, r, -Math.PI/2, Math.PI/2); ctx.fill();
+                        ctx.fillRect(cx+compLen - r, by, r, barH);
+                    }
+                } else ctx.fillRect(bx+promptLen, by, compLen, barH);
+            }
+
+            // Right value
+            ctx.fillStyle = text;
+            ctx.font = '700 11px JetBrains Mono, monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(fmt(u.total_tokens), barX + barW + 10, cy);
+
+            // Store hit area for tooltip
+            _userChartRows.push({ y: by - 6, y2: by + barH + 6, x: bx, x2: bx + barW, u });
+        });
+
+        // X-axis faint
+        ctx.fillStyle = muted;
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(fmt(max), barX + barW, padTop + top.length*rowH + 10);
+
+        // Hover tooltip handler (attach once)
+        if (!canvas._tipBound) {
+            canvas._tipBound = true;
+            if (!_userChartTip) {
+                _userChartTip = document.createElement('div');
+                _userChartTip.style.cssText = 'position:fixed; pointer-events:none; background:#1e1e26; color:var(--text); border:1px solid var(--border); border-left:3px solid var(--accent); padding:8px 10px; border-radius:10px; font-size:11px; line-height:1.5; box-shadow:var(--shadow-lg); display:none; z-index:20; max-width:260px;';
+                document.body.appendChild(_userChartTip);
+            }
+            canvas.addEventListener('mousemove', (e)=>{
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const hit = _userChartRows.find(r=> y >= r.y && y <= r.y2 && x >= r.x && x <= r.x2 + 90);
+                if (hit) {
+                    _userChartTip.innerHTML = `<div style="font-weight:700;">${hit.u.full_name || hit.u.email}</div><div style="color:var(--text-muted);">${hit.u.email} • ${hit.u.department?.toUpperCase()}</div><div style="margin-top:4px;">Total: <strong style="color:var(--accent);">${fmt(hit.u.total_tokens)}</strong> &nbsp; Prompt: ${fmt(hit.u.prompt_tokens)} &nbsp; Completion: ${fmt(hit.u.completion_tokens)}<br>Questions: ${fmt(hit.u.question_count)}</div>`;
+                    _userChartTip.style.left = (e.clientX + 12) + 'px';
+                    _userChartTip.style.top = (e.clientY - 10) + 'px';
+                    _userChartTip.style.display = 'block';
+                    canvas.style.cursor = 'pointer';
+                } else {
+                    _userChartTip.style.display = 'none';
+                    canvas.style.cursor = 'default';
+                }
+            });
+            canvas.addEventListener('mouseleave', ()=> { if(_userChartTip) _userChartTip.style.display='none'; });
+            window.addEventListener('resize', ()=> { if(_userChartRows.length) drawUserChart(users.slice(0,10)); });
+        }
+    }
+
+    async function loadUsage() {
+        const r = await authFetch('/api/admin/usage/per-user');
+        const d = await r.json();
+        document.getElementById('statTokens').textContent = fmt(d.total_tokens);
+        document.getElementById('statQuestions').textContent = fmt(d.total_questions);
+        document.getElementById('statUsersWithUsage').textContent = fmt(d.total_users_with_usage);
+        document.getElementById('statTopUser').innerHTML = d.top_user ? `${d.top_user.full_name || d.top_user.email}<br><span style="font-size:11px; color:var(--text-muted);">${fmt(d.top_user.total_tokens)} tokens</span>` : '—';
+        const tbody = document.getElementById('usageTable');
+        if (!d.users || d.users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No token usage recorded yet. Usage appears after users chat.</div></td></tr>';
+            drawUserChart([]);
+            return;
+        }
+        tbody.innerHTML = d.users.map(u => `
+            <tr>
+                <td>
+                    <div style="font-weight:700; color:var(--text); font-size:13px;">${u.full_name || 'N/A'}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${u.email}</div>
+                </td>
+                <td><span class="badge badge-${u.department}">${(u.department||'N/A').toUpperCase()}</span></td>
+                <td style="text-align:right; font-weight:600;">${fmt(u.question_count)}</td>
+                <td style="text-align:right; color:var(--text-secondary);">${fmt(u.prompt_tokens)}</td>
+                <td style="text-align:right; color:var(--text-secondary);">${fmt(u.completion_tokens)}</td>
+                <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(u.total_tokens)}</td>
+            </tr>
+        `).join('');
+        drawUserChart(d.users);
+    }
+
+    function drawChart(series) {
+        const canvas = document.getElementById('usageChart');
+        const ctx = canvas.getContext('2d');
+        const css = getComputedStyle(document.documentElement);
+        const accent = css.getPropertyValue('--accent').trim() || '#ff2d2d';
+        const muted = css.getPropertyValue('--text-muted').trim() || '#70707a';
+        const W = canvas.width = canvas.clientWidth * 2;
+        canvas.height = 140 * 2;
+        ctx.clearRect(0,0,W, W);
+        ctx.scale(2,2);
+        const w = canvas.clientWidth; const h = 140;
+        const data = series.map(p => p.total_tokens);
+        const max = Math.max(1, ...data);
+        const bw = w / data.length; const pad = 4;
+        for (let i=0;i<data.length;i++) {
+            const bh = (data[i]/max)*(h-28);
+            const x = i*bw + pad; const y = h-16-bh;
+            const grd = ctx.createLinearGradient(0,y,0,h-16);
+            grd.addColorStop(0, accent); grd.addColorStop(1, accent+'55');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x,y,bw-pad*2,bh,4); else { ctx.rect(x,y,bw-pad*2,bh); }
+            ctx.fill();
+        }
+        ctx.fillStyle = muted; ctx.font='10px Inter, sans-serif'; ctx.textAlign='center';
+        for (let i=0;i<data.length;i+=2) ctx.fillText(series[i].date.slice(5), i*bw + bw/2, h-2);
+        ctx.fillStyle = accent; ctx.font='bold 11px Inter, sans-serif';
+        const mi = data.indexOf(max);
+        if (max>0) ctx.fillText(fmt(max), mi*bw + bw/2, Math.max(10, h-16-(data[mi]/max)*(h-28)-6));
+    }
+
+    async function loadTimeseries() {
+        const r = await authFetch('/api/admin/usage/timeseries?days=14');
+        const d = await r.json();
+        if (d.series) drawChart(d.series);
+    }
+
+    loadOverview(); loadUsage(); loadTimeseries(); loadRBAC();
 </script>
 {% endblock %}

@@ -26,7 +26,7 @@ def _no_context_llm_call(question: str) -> str:
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": "You are Cyprus AI, a friendly company assistant. Be warm and conversational."},
+                {"role": "system", "content": "You are EthosAI, a friendly company assistant. Be warm and conversational."},
                 {"role": "user", "content": NO_CONTEXT_PROMPT.format(question=question)},
             ],
             temperature=0.3,
@@ -56,7 +56,7 @@ GREETING_PATTERNS = re.compile(
 
 GREETING_RESPONSES = {
     "hi": "Hi there! How can I help you today?",
-    "hello": "Hello! I'm Cyprus AI, your company policy assistant. What can I help you with?",
+    "hello": "Hello! I'm EthosAI, your company policy assistant. What can I help you with?",
     "hey": "Hey! What can I help you with?",
     "good morning": "Good morning! How can I assist you today?",
     "good afternoon": "Good afternoon! What can I help you with?",
@@ -67,17 +67,17 @@ GREETING_RESPONSES = {
     "thank you": "You're welcome! Happy to help anytime.",
     "bye": "Goodbye! Have a great day.",
     "goodbye": "See you later! Feel free to come back anytime.",
-    "who are you": "I'm Cyprus AI -- your company policy assistant. I can answer questions about company policies, IT guidelines, HR procedures, and more. Just ask me anything!",
+    "who are you": "I'm EthosAI -- your company policy assistant. I can answer questions about company policies, IT guidelines, HR procedures, and more. Just ask me anything!",
     "what are you": "I'm an AI assistant powered by RAG (Retrieval-Augmented Generation). I search through company documents and give you accurate answers based on actual policy content.",
     "what can you do": "I can help you with:\n- Company policies and procedures\n- IT guidelines and infrastructure info\n- HR policies (leave, benefits, etc.)\n- Any document-based questions\n\nJust type your question and I'll find the answer!",
     "help": "Here's what I can do:\n\n- Answer questions about company policies\n- Help with IT guidelines and procedures\n- Explain HR policies\n- Look up specific document details\n\nJust ask a question -- I'll search through company documents and give you the answer!",
     "what can you help with": "I can help with:\n- Company policies and procedures\n- IT guidelines and infrastructure info\n- HR policies (leave, benefits, etc.)\n- Any document-based questions\n\nJust type your question and I'll find the answer!",
 }
 
-DEFAULT_GREETING = "Hey! I'm Cyprus AI. Ask me anything about company policies, IT guidelines, HR procedures, or any other company documents."
+DEFAULT_GREETING = "Hey! I'm EthosAI. Ask me anything about company policies, IT guidelines, HR procedures, or any other company documents."
 
 
-SYSTEM_PROMPT = """You are Cyprus AI, a friendly and helpful company assistant. You answer employee questions using company documents.
+SYSTEM_PROMPT = """You are EthosAI, a friendly and helpful company assistant. You answer employee questions using company documents.
 
 Personality:
 - Be warm, friendly, and conversational
@@ -116,7 +116,7 @@ Question: {question}
 Answer using ONLY information from this single document above. Do not mix information from other sources. Provide a thorough, detailed answer with all relevant facts, rules, dates, requirements, and specifics. Use bullet points if explaining multiple items."""
 
 
-NO_CONTEXT_PROMPT = """You are Cyprus AI, a friendly company assistant.
+NO_CONTEXT_PROMPT = """You are EthosAI, a friendly company assistant.
 
 The user asked: "{question}"
 
@@ -136,7 +136,7 @@ def _format_chat_history(history: List[Dict]) -> str:
         return ""
     lines = ["Previous conversation:"]
     for msg in history[-12:]:  # Last 12 messages for better context
-        role = "Employee" if msg["role"] == "user" else "Cyprus AI"
+        role = "Employee" if msg["role"] == "user" else "EthosAI"
         content = msg["content"][:300]  # Truncate long answers to save context
         lines.append(f"{role}: {content}")
     lines.append("")
@@ -333,7 +333,7 @@ async def query_rag(
         # Retry if LLM echoed context
         if _is_echo(answer):
             retry_msgs = [
-                {"role": "system", "content": "You are Cyprus AI, a friendly assistant. Answer warmly in 1-3 sentences. Do NOT copy text — write your own answer."},
+                {"role": "system", "content": "You are EthosAI, a friendly assistant. Answer warmly in 1-3 sentences. Do NOT copy text — write your own answer."},
                 {"role": "user", "content": f"Facts:\n{context}\n\nQuestion: {question}\n\nAnswer:"},
             ]
             retry = client.chat.completions.create(
@@ -350,7 +350,7 @@ async def query_rag(
         unsure = ["don't have", "not specified", "cannot determine", "not provided"]
         if any(p in answer.lower() for p in unsure):
             retry_msgs = [
-                {"role": "system", "content": "You are Cyprus AI. Answer using ONLY the facts below. Extract the specific answer — do not say you don't know if the facts contain it. Be friendly."},
+                {"role": "system", "content": "You are EthosAI. Answer using ONLY the facts below. Extract the specific answer — do not say you don't know if the facts contain it. Be friendly."},
                 {"role": "user", "content": f"Facts:\n{context}\n\nQuestion: {question}\n\nAnswer with the specific fact:"},
             ]
             retry = client.chat.completions.create(

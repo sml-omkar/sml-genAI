@@ -1,4 +1,4 @@
-"""Generate an architecture/cost documentation PDF for the Cyprus AI system."""
+"""Generate an architecture/cost documentation PDF for the EthosAI system."""
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch, mm
@@ -46,13 +46,13 @@ def bullets(items, style=body):
 
 story = []
 
-story.append(Paragraph("Cyprus AI — Architecture & API Cost Breakdown", title_style))
+story.append(Paragraph("EthosAI — Architecture & API Cost Breakdown", title_style))
 story.append(Paragraph("What we use from OpenAI, what runs in-house, and why we built our own RAG", subtitle_style))
 
 # ---------------------------------------------------------------- Executive
 story.append(Paragraph("1. Overview", h2))
 story.append(Paragraph(
-    "Cyprus AI is an internal company chatbot that answers employee questions from uploaded "
+    "EthosAI is an internal company chatbot that answers employee questions from uploaded "
     "policy PDF documents. It combines our own in-house Retrieval-Augmented Generation (RAG) "
     "pipeline with OpenAI's large language model for the final answer generation. The vector "
     "search, document processing, and knowledge retrieval are built and hosted entirely by us — "
