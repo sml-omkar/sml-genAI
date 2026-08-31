@@ -22,6 +22,11 @@ from app.cache.service import cache_get, cache_set, get_rag_cache_key
 
 settings = get_settings()
 
+OUT_OF_SCOPE_MESSAGE = (
+    "I don't have specific information about that in the company documents. "
+    "Could you ask about something else, like our IT policies, HR procedures, or infrastructure setup?"
+)
+
 # ============================================================================
 # Data classes for agent state
 # ============================================================================
@@ -251,114 +256,92 @@ async def evaluate_chunks(
     question: str,
     chunks: List[Dict],
 ) -> Tuple[str, str]:
-    """Evaluate if chunks are relevant enough to answer the question."""
+    """
+    Decide if retrieved chunks actually answer the question.
+    Cost-aware: uses the cheap numeric relevance score as the primary signal and
+    only asks the LLM when the score is borderline, so we save a full LLM call in
+    the common (clearly relevant / clearly irrelevant) cases.
+    """
     if not chunks:
         return "NONE", "No chunks found"
-    
-    # Build a summary of chunks for evaluation
+
+    best_score = max(c.get("relevance_score", 0) for c in chunks)
+
+    # Clear-cut cases decided by the free numeric score (no LLM call needed).
+    if best_score >= 0.75:
+        return "HIGH", f"Best score: {best_score:.2f}"
+    if best_score < 0.45:
+        return "LOW", f"Best score: {best_score:.2f}"
+
+    # Borderline (0.45 - 0.75): ask the LLM to confirm, keeping input small.
     chunk_summary = "\n".join([
-        f"[{i+1}] {c['text'][:200]}..."
-        for i, c in enumerate(chunks[:5])
+        f"[{i+1}] {c['text'][:120]}..."
+        for i, c in enumerate(chunks[:4])
     ])
-    
+
     messages = [
         {"role": "system", "content": RELEVANCE_EVALUATOR},
         {"role": "user", "content": f"Question: {question}\n\nChunks:\n{chunk_summary}"},
     ]
-    
-    response = _llm_chat(messages, temperature=0.0, max_tokens=150)
-    
+
+    response = _llm_chat(messages, temperature=0.0, max_tokens=40)
+
     try:
         json_match = re.search(r'\{.*?\}', response, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
-            return result.get("relevance", "MEDIUM"), result.get("reason", "")
+            return result.get("relevance", "MEDIUM"), result.get("reason", "")[:120]
     except (json.JSONDecodeError, TypeError):
         pass
-    
-    # Fallback: use score-based evaluation
-    best_score = max(c.get("relevance_score", 0) for c in chunks)
-    if best_score >= 0.7:
-        return "HIGH", f"Best score: {best_score:.2f}"
-    elif best_score >= 0.5:
-        return "MEDIUM", f"Best score: {best_score:.2f}"
-    else:
-        return "LOW", f"Best score: {best_score:.2f}"
+
+    # Fallback to numeric score if the LLM response is unparseable.
+    if best_score >= 0.6:
+        return "MEDIUM", f"Score fallback: {best_score:.2f}"
+    return "LOW", f"Score fallback: {best_score:.2f}"
 
 
 # ============================================================================
 # Step 4: Answer Generator
 # ============================================================================
 
-GENERATOR_SYSTEM = """You are Cyprus AI, a friendly and helpful company assistant. You answer employee questions using company documents.
+GENERATOR_SYSTEM = """You are Cyprus AI, an employee-help assistant for SML. You answer questions using ONLY the company-document context given below — nothing else. Everything you say must be grounded in that context.
 
-Two-step process — ALWAYS do this in order:
-STEP 1 — ANALYZE (think, don't write):
-  Before answering, read the retrieved facts and the user's question together.
-  Identify exactly what the user is asking and which facts answer it.
-  Only use information actually present in the facts.
-STEP 2 — ANSWER:
-  Then give a direct answer that directly addresses the question, with the depth the user requested.
+DECIDE, then ANSWER:
+Step A — Are the provided facts enough to answer?
+  - Facts answer the question directly  -> proceed to Step B.
+  - Facts partly answer, but something is unclear (e.g. which policy, which rule, which person) -> reply asking ONE concise clarifying question to pin it down. Start with "[NEED_CLARIFICATION]" then your brief question.
+  - Facts are unrelated or absent      -> reply that you don't have that information and ask what they'd like to know about.
+Step B — What depth does the user want?
+  Choose naturally from the question's wording: a direct factual question -> short & direct; a request for steps/procedure/how -> numbered steps; a request to explain/elaborate/brief -> thorough, structured detail; a list question -> bullets. Match, don't over-explain, don't under-explain.
+Step C — Write the answer in your own words using only the facts.
 
-Rules:
-- Default style: SHORT and DIRECT — answer the question in 2-4 sentences
-- If the user explicitly asks to "explain", "explain fully", "in detail", "elaborate", "brief me about", "give a brief about", or wants a comprehensive explanation, THEN give a long, thorough, well-structured answer covering all the relevant facts.
-- Do NOT dump every fact unless the user asked for a full explanation — answer exactly what was asked
-- Be direct and to the point; no fluff, no repetition
-- Only use bullet points if a policy genuinely has multiple distinct rules the user asked about
-- Include the key specific detail (number, deadline, rule) that answers the question
-- NEVER mention "context", "sources", "documents", "sections", or "numbered items"
-- NEVER start sentences with "According to...", "As per...", "Based on...", "The policy states..."
-- NEVER name any policy, PDF, or file — just state the facts directly as if you know them
-- You remember previous questions in this conversation — use that context
-- If NONE of the information answers the question, say exactly:
-  "I don't have specific information about that in the company documents. Could you ask about something else, like our IT policies, HR procedures, or infrastructure setup?"
+Constraints:
+- Never invent details that are not in the context (no outside knowledge, no guessing, no assumptions).
+- Never fabricate numbers, dates, or rules.
+- Keep the exact figures/deadlines from the context when they answer the question.
+- Do not mention "context", "sources", "documents", "sections", or "retrieved".
+- Do not open with "According to...", "As per...", "Based on...", "The policy states...".
+- Do not name any policy file or PDF — state facts as if you know them.
+- Use earlier turns in the conversation where relevant.
 
-Examples of SHORT & DIRECT:
+Examples:
 Q: How often must I change my password?
 A: Every 45 days. Create a strong, complex password, enable MFA, and do not reuse old passwords.
 
-Q: Who approves AI licenses?
-A: IT calculates a combined score from two parts — operational need (max 55) and technical/security (max 45). If the total is 65 or above, the application is approved.
+Q: How do I request leave?
+A: To request leave:
+1. Log in to the HR portal.
+2. Click 'Leave Request' and choose the type of leave.
+3. Select the dates and add a reason.
+4. Submit at least 2 days in advance; your manager approves it in the portal.
 
-Q: What is the leave policy?
-A: You get 20 days annual leave, 12 sick days a year, 26 weeks maternity, and 5 days paternity. Apply at least 2 days in advance through the HR portal.
-
-Example when the user asks to EXPLAIN in detail (note the long, comprehensive answer):
-Q: Explain the password policy in detail
-A: The password policy requires you to change your password every 45 days. Your password must be strong and complex, combining upper and lower case letters, numbers, and special characters, and should not be reused across systems or from your old passwords. You must also enable Multi-Factor Authentication (MFA) on your account for an extra layer of security. If you forget your password, you can reset it through the IT helpdesk, and your new password must be different from your previous ones to keep your account secure."""
+Q: Do I need approval for a work-from-home day?
+(If the context only covers leave, not WFH)
+A: [NEED_CLARIFICATION] The documents cover the leave request process but I don't see a work-from-home policy. Did you mean requesting a leave day, or is there a separate WFH guideline you're referring to?"""
 
 
 # Strips source-referencing lead-ins the small model tends to produce,
 # e.g. "According to the Password Management Policy document, you must..."
-def _requests_detail(question: str) -> bool:
-    """Detect if the user explicitly asked for a detailed/comprehensive explanation."""
-    q = question.lower().strip()
-    return bool(re.search(
-        r"(explain|elaborate|in detail|full(ly)? (explain|detail|break|detail)|"
-        r"brief me|brief about|overview of|summariz|describe|tell me more|"
-        r"more about|go into detail|walk me through|what are the (rules|steps|guidelines)|"
-        r"how does it work|give me a (full|brief|detailed)|in depth)",
-        q,
-    ))
-
-
-GENERATOR_DETAIL_SYSTEM = """You are Cyprus AI, a friendly and helpful company assistant. You answer employee questions using company documents.
-
-The employee asked for a FULL, COMPREHENSIVE explanation, so give a detailed and well-structured answer.
-
-Rules:
-- Be thorough: cover ALL relevant facts present in the context that relate to the question
-- Use clear structure — short paragraphs and/or bullet points where appropriate
-- Explain the reasoning and context behind the rules, not just the raw numbers
-- Keep the specific numbers, deadlines, and rules intact and accurate
-- NEVER mention "context", "sources", "documents", "sections", or "numbered items"
-- NEVER start sentences with "According to...", "As per...", "Based on...", "The policy states..."
-- NEVER name any policy, PDF, or file — just state the facts directly as if you know them
-- If NONE of the information answers the question, say exactly:
-  "I don't have specific information about that in the company documents. Could you ask about something else, like our IT policies, HR procedures, or infrastructure setup?"  """
-
-
 _SOURCE_LEADIN = re.compile(
     r"^\s*(?:according to|as per|per|based on|from)\s+(?:the\s+)?[\"']?.{0,80}?"
     r"(?:polic(?:y|ies)|document|doc|pdf|guideline[s]?|manual|handbook|file)[\"']?\s*,?\s*",
@@ -372,6 +355,11 @@ def _clean_answer(answer: str) -> str:
     if cleaned and cleaned[0].islower():
         cleaned = cleaned[0].upper() + cleaned[1:]
     return cleaned
+
+
+# Flag we use when the generator tells us it cannot answer from the context.
+# Kept as a sentinel so downstream code can detect "please clarify" replies.
+CLARITY_SENTINEL = "[NEED_CLARIFICATION]"
 
 
 def format_chunks_for_llm(chunks: List[Dict]) -> str:
@@ -454,34 +442,36 @@ async def generate_answer(
 
 User question: {question}
 
-First analyze the context and the question together to identify the direct answer, then respond short and direct."""
-    
+Follow the instructions in your system prompt. Decide the appropriate response (direct answer, numbered steps, detailed explanation, or a clarifying question)."""
+
     messages = [
         {"role": "system", "content": GENERATOR_SYSTEM},
         {"role": "user", "content": user_content},
     ]
 
-    if _requests_detail(question):
-        messages[0]["content"] = GENERATOR_DETAIL_SYSTEM
+    answer = _llm_chat(messages, temperature=0.3, max_tokens=700)
 
-    answer = _llm_chat(messages, temperature=0.3, max_tokens=1024)
-    
     if not answer:
         return "I encountered an error generating a response. Please try again."
-    
+
+    # If the model asked for clarification, keep the sentinel marker so the
+    # caller (query_rag) can distinguish it from a normal answer / refusal.
+    if CLARITY_SENTINEL in answer:
+        return answer.strip()
+
     # Check for echo (LLM just copying context)
     lines = answer.strip().split("\n")
     header_lines = sum(1 for l in lines if any(p in l for p in ["Source:", "[1]", "[2]", "[3]"]))
     if header_lines > len(lines) * 0.4 and len(lines) > 3:
         # Retry with simpler prompt
         retry_messages = [
-            {"role": "system", "content": "Answer the question using the facts provided. Write naturally, don't copy."},
+            {"role": "system", "content": "Answer the question using ONLY the facts provided. Write naturally, don't copy."},
             {"role": "user", "content": f"Facts:\n{context}\n\nQuestion: {question}\n\nAnswer:"},
         ]
         retry_answer = _llm_chat(retry_messages, temperature=0.3, max_tokens=512)
         if retry_answer and len(retry_answer) > 20:
             answer = retry_answer
-    
+
     return _clean_answer(answer)
 
 
@@ -642,19 +632,28 @@ async def query_rag(
                 best_relevance = relevance
     
     # ---- Step 4: Select Best Chunks ----
+    # Strict scope enforcement: only retrieve chunks that genuinely meet the
+    # relevance threshold. We do NOT force irrelevant chunks through to the
+    # generator — that is what let the bot answer questions outside our documents.
     if all_chunks:
-        # Filter by minimum relevance score
         relevant = [c for c in all_chunks if c.get("relevance_score", 0) >= min_relevance]
-        if not relevant:
-            relevant = all_chunks[:5]
 
         # Take top 5 chunks
         selected = relevant[:5]
         state.chunks_used = len(selected)
-        state.confidence = max(c.get("relevance_score", 0) for c in selected)
+        state.confidence = max(c.get("relevance_score", 0) for c in selected) if selected else 0.0
     else:
         selected = []
         state.confidence = 0.0
+
+    # ---- Step 4a: Handle evaluator LOW/NONE verdict ----
+    # If retrieval pulled back something but the evaluator judged it not actually
+    # relevant (LOW/NONE), discard it so we don't answer from unrelated content.
+    if selected and best_relevance in ("LOW", "NONE"):
+        print(f"[AGENT] Relevance judged '{best_relevance}' — discarding chunks, treating as out of scope")
+        selected = []
+        state.confidence = 0.0
+
 
     # ---- Step 4b: Load policy memories for matched documents ----
     memories: Dict[str, Dict] = {}
@@ -675,20 +674,34 @@ async def query_rag(
 
     # ---- Step 5: Generate Answer ----
     if not selected:
-        # No relevant chunks — try answering from conversation history first
-        # (handles follow-ups like "give this in short", "what did I ask?")
-        history_answer = await _answer_from_history(question, chat_history) if chat_history else None
-        if history_answer:
-            answer = history_answer
-            state.add_step("generate", question, f"Answered from conversation history")
-            result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
-        else:
-            answer = "I don't have specific information about that in the company documents. Could you ask about something else, like our IT policies, HR procedures, or infrastructure setup?"
-            state.add_step("generate", question, answer)
-            result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
+        # No in-scope document chunks. First try answering purely from previous
+        # conversation (only for legitimate follow-ups like "explain that" /
+        # "in short" / "what did I ask?"). _answer_from_history itself refuses
+        # (returns None) when the earlier replies do not contain the answer.
+        if chat_history:
+            history_answer = await _answer_from_history(question, chat_history)
+            if history_answer:
+                answer = history_answer
+                state.add_step("generate", question, "Answered from conversation history")
+                result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
+                cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
+                if debug:
+                    result["debug"] = state.to_dict()
+                return result
+
+        # Otherwise the question is outside our documents — refuse rather than
+        # answer from general knowledge.
+        answer = OUT_OF_SCOPE_MESSAGE
+        state.add_step("generate", question, answer)
+        result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
     else:
         state.add_step("generate", question, f"Generating from {len(selected)} chunks...")
         answer = await generate_answer(question, selected, chat_history, memories=memories)
+
+        # Strip the internal clarification marker before showing the user.
+        if answer.startswith(CLARITY_SENTINEL):
+            answer = answer[len(CLARITY_SENTINEL):].strip(" :\n")
+
         state.answer = answer
         
         # Extract sources
