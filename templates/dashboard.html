@@ -38,29 +38,18 @@
 
 <div style="display:grid; grid-template-columns: 1.35fr 0.85fr; gap:14px; margin-bottom:14px;">
     <div class="card">
-        <div class="card-header">Quick actions <small>Most common tasks</small></div>
-        <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:10px;">
-            <a href="/admin/users" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
-                <div class="kpi-icon" style="background:var(--accent-dim); border-color:var(--accent-border); color:var(--accent); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
-                <div><div style="font-weight:700; font-size:13px;">Add users</div><div style="font-size:11px; color:var(--text-muted);">Single or bulk CSV upload</div></div>
-            </a>
-            <a href="/admin/groups" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
-                <div class="kpi-icon" style="background:var(--purple-dim); border-color:rgba(167,139,250,0.22); color:var(--purple); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                <div><div style="font-weight:700; font-size:13px;">Manage groups</div><div style="font-size:11px; color:var(--text-muted);">Connect users ↔ folders</div></div>
-            </a>
-            <a href="/admin/documents" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
-                <div class="kpi-icon" style="background:var(--blue-dim); border-color:rgba(56,189,248,0.22); color:var(--blue); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                <div><div style="font-weight:700; font-size:13px;">Upload documents</div><div style="font-size:11px; color:var(--text-muted);">Policies, guides, docs</div></div>
-            </a>
-            <a href="/" target="_blank" class="card" style="padding:14px; display:flex; gap:12px; align-items:center; text-decoration:none; color:inherit;">
-                <div class="kpi-icon" style="background:var(--green-dim); border-color:var(--green-border); color:var(--green); width:36px;height:36px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                <div><div style="font-weight:700; font-size:13px;">Test chatbot</div><div style="font-size:11px; color:var(--text-muted);">Public chat • group-filtered</div></div>
-            </a>
+        <div class="card-header">Total Token Usage — By User <small>All-time distribution • prompt + completion</small> <span id="totalTokensLabelTop" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px;"></span></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 6px; position:relative;">
+            <canvas id="totalLineChart" height="220" style="width:100%; display:block;"></canvas>
+            <div id="totalLineEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
+                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No usage yet — line appears after users chat.
+            </div>
         </div>
-        <div class="divider"></div>
-        <div style="font-size:11.5px; color:var(--text-secondary); line-height:1.7;">
-            <strong style="color:var(--text);">How RBAC works:</strong> Users get access <em>only</em> through <strong>Groups</strong>. A Group bundles users + folders. When a user asks the chatbot, EthosAI filters documents to the folders their groups allow.
-            Super Admin sees everything; Dept Admin manages own department; User queries only assigned folders.
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); align-items:center;">
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent); display:inline-block;"></span> Total</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--blue); display:inline-block;"></span> Prompt</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--purple); display:inline-block;"></span> Completion</span>
+            <span style="margin-left:auto; color:var(--text-faint);" class="help">Hover points for exact tokens</span>
         </div>
     </div>
     <div class="card">
@@ -137,25 +126,6 @@
     </div>
 </div>
 
-<div class="card" style="margin-bottom:14px;">
-    <div class="card-header">
-        <span>Total Token Usage — By User <small style="font-weight:400; color:var(--text-muted); margin-left:6px;">All-time distribution • prompt + completion</small></span>
-        <span id="totalTokensLabel" class="mono" style="font-size:12px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:5px 10px; border-radius:20px;"></span>
-    </div>
-    <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 10px; position:relative;">
-        <canvas id="userChart" height="220" style="width:100%; display:block;"></canvas>
-        <div id="userChartEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
-            <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12 2.69 12"/><path d="M12 12 12 2"/></svg></div>No usage yet — bars appear after users chat.
-        </div>
-    </div>
-    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); align-items:center;">
-        <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent); display:inline-block;"></span> Total tokens</span>
-        <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--blue); display:inline-block;"></span> Prompt (lighter)</span>
-        <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;border-radius:3px;background:var(--purple); display:inline-block;"></span> Completion (darker)</span>
-        <span style="margin-left:auto; color:var(--text-faint);" class="help">Hover a bar for exact tokens</span>
-    </div>
-</div>
-
 <!-- RBAC OVERVIEW -->
 <div class="card">
     <div class="card-header">RBAC Overview <small>Roles, scopes & permissions — who can do what</small></div>
@@ -211,13 +181,13 @@
         } catch(e) { /* silent */ }
     }
 
-    let _userChartTip = null;
-    let _userChartRows = [];
+    let _totalLineTip = null;
+    let _totalLinePoints = [];
 
-    function drawUserChart(users) {
-        const canvas = document.getElementById('userChart');
-        const empty = document.getElementById('userChartEmpty');
-        const label = document.getElementById('totalTokensLabel');
+    function drawTotalLineChart(users) {
+        const canvas = document.getElementById('totalLineChart');
+        const empty = document.getElementById('totalLineEmpty');
+        const label = document.getElementById('totalTokensLabelTop');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const css = getComputedStyle(document.documentElement);
@@ -226,6 +196,7 @@
         const purple = css.getPropertyValue('--purple').trim() || '#a78bfa';
         const muted = css.getPropertyValue('--text-muted').trim() || '#70707a';
         const text = css.getPropertyValue('--text').trim() || '#f2f2f5';
+        const border = css.getPropertyValue('--border').trim() || '#2a2a33';
 
         const total = users.reduce((s,u)=> s + (u.total_tokens||0), 0);
         if (label) label.textContent = total ? `Σ ${fmt(total)} tokens` : '';
@@ -233,137 +204,139 @@
         if (!users || users.length === 0) {
             if (empty) empty.style.display = 'grid';
             ctx.clearRect(0,0,canvas.width, canvas.height);
-            _userChartRows = [];
+            _totalLinePoints = [];
             return;
         }
         if (empty) empty.style.display = 'none';
 
-        // Take top 10 by total_tokens (already sorted desc by API)
         const top = users.slice(0, 10);
-        const max = Math.max(1, ...top.map(u=> u.total_tokens));
+        const max = Math.max(1, ...top.map(u=> Math.max(u.total_tokens, u.prompt_tokens, u.completion_tokens)));
 
-        // Dynamic height
-        const rowH = 32;
-        const padTop = 8;
-        const needed = top.length * rowH + padTop + 14;
         const dpr = window.devicePixelRatio || 1;
         const cssW = canvas.clientWidth || 600;
-        const cssH = Math.max(220, needed);
+        const cssH = 220;
         canvas.style.height = cssH + 'px';
         canvas.width = cssW * dpr;
         canvas.height = cssH * dpr;
         ctx.setTransform(dpr,0,0,dpr,0,0);
         ctx.clearRect(0,0,cssW, cssH);
 
-        const leftW = 150;
-        const rightW = 88;
-        const barX = leftW;
-        const barW = Math.max(60, cssW - leftW - rightW - 10);
-        const barH = 14;
+        const padL = 44, padR = 16, padT = 14, padB = 28;
+        const plotW = cssW - padL - padR;
+        const plotH = cssH - padT - padB;
+        const n = top.length;
+        const stepX = n > 1 ? plotW / (n - 1) : plotW;
 
-        _userChartRows = [];
-
-        top.forEach((u, i) => {
-            const y = padTop + i * rowH;
-            const cy = y + rowH/2;
-
-            // Dept color dot
-            const deptColor = u.department==='hr' ? blue : u.department==='it' ? purple : u.department==='finance' ? '#fb923c' : accent;
-            ctx.fillStyle = deptColor;
-            ctx.beginPath(); ctx.arc(10, cy, 5, 0, Math.PI*2); ctx.fill();
-
-            // Name + email truncated
-            ctx.fillStyle = text;
-            ctx.font = '600 12px Inter, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            const name = (u.full_name || u.email || 'N/A');
-            const short = name.length > 18 ? name.slice(0,17) + '…' : name;
-            ctx.fillText(short, 20, cy - 4);
-
+        // Grid + Y labels
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        for (let i=0;i<=4;i++) {
+            const y = padT + (plotH * i/4);
+            ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+plotW, y); ctx.stroke();
+            const val = Math.round(max - (max * i/4));
             ctx.fillStyle = muted;
-            ctx.font = '11px Inter, sans-serif';
-            const emailShort = (u.email||'').length > 22 ? u.email.slice(0,21)+'…' : u.email;
-            ctx.fillText(emailShort, 20, cy + 9);
+            ctx.font = '10px JetBrains Mono, monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fmt(val), padL - 8, y);
+        }
 
-            // Bar background
-            const len = Math.max(2, (u.total_tokens / max) * barW);
-            const bx = barX;
-            const by = cy - barH/2;
-            ctx.fillStyle = 'rgba(255,255,255,0.06)';
-            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, barW, barH, 7); ctx.fill(); }
-            else { ctx.fillRect(bx, by, barW, barH); }
+        // Helper to get points
+        function pts(key) {
+            return top.map((u,i)=> {
+                const x = padL + i * stepX;
+                const y = padT + plotH - ( (u[key]||0) / max ) * plotH;
+                return {x,y,u};
+            });
+        }
+        const totalPts = pts('total_tokens');
+        const promptPts = pts('prompt_tokens');
+        const compPts = pts('completion_tokens');
 
-            // Stacked: prompt + completion
-            const promptLen = u.total_tokens ? (u.prompt_tokens / u.total_tokens) * len : 0;
-            const compLen = len - promptLen;
+        // Fill under total
+        ctx.fillStyle = 'rgba(255,45,45,0.08)';
+        ctx.beginPath();
+        ctx.moveTo(totalPts[0].x, padT + plotH);
+        totalPts.forEach(p=> ctx.lineTo(p.x, p.y));
+        ctx.lineTo(totalPts[totalPts.length-1].x, padT + plotH);
+        ctx.closePath(); ctx.fill();
 
-            // Prompt segment (blue-ish lighter)
-            if (promptLen > 0) {
-                ctx.fillStyle = blue + 'CC';
-                if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, promptLen, barH, 7); ctx.fill(); }
-                else ctx.fillRect(bx, by, promptLen, barH);
-            }
-            // Completion segment (accent / purple)
-            if (compLen > 0.5) {
-                ctx.fillStyle = accent;
-                const cx = bx + promptLen;
-                // Need to clip if both segments to keep rounded ends correct — simple rect
-                if (ctx.roundRect) {
-                    const r = 7;
-                    if (promptLen < 2) { // only completion
-                        ctx.beginPath(); ctx.roundRect(cx, by, compLen, barH, r); ctx.fill();
-                    } else { // right part with right-rounded only — draw rect + cover left edge
-                        ctx.fillRect(cx, by, compLen, barH);
-                        // round right end
-                        ctx.beginPath(); ctx.arc(cx+compLen - r, by + barH/2, r, -Math.PI/2, Math.PI/2); ctx.fill();
-                        ctx.fillRect(cx+compLen - r, by, r, barH);
-                    }
-                } else ctx.fillRect(bx+promptLen, by, compLen, barH);
-            }
+        // Draw lines
+        function drawLine(points, color, width, dash) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            if (dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+            ctx.beginPath();
+            // smooth cubic
+            points.forEach((p,i)=> {
+                if (i===0) ctx.moveTo(p.x, p.y);
+                else {
+                    const prev = points[i-1];
+                    const cx = (prev.x + p.x)/2;
+                    ctx.bezierCurveTo(cx, prev.y, cx, p.y, p.x, p.y);
+                }
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // dots
+            points.forEach(p=>{
+                ctx.fillStyle = color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#121216';
+                ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, Math.PI*2); ctx.fill();
+            });
+        }
+        drawLine(promptPts, blue, 1.8, [4,4]);
+        drawLine(compPts, purple, 1.8, [4,4]);
+        drawLine(totalPts, accent, 2.4, null);
 
-            // Right value
-            ctx.fillStyle = text;
-            ctx.font = '700 11px JetBrains Mono, monospace';
-            ctx.textAlign = 'left';
-            ctx.fillText(fmt(u.total_tokens), barX + barW + 10, cy);
-
-            // Store hit area for tooltip
-            _userChartRows.push({ y: by - 6, y2: by + barH + 6, x: bx, x2: bx + barW, u });
-        });
-
-        // X-axis faint
+        // X labels (names)
         ctx.fillStyle = muted;
         ctx.font = '10px Inter, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(fmt(max), barX + barW, padTop + top.length*rowH + 10);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        top.forEach((u,i)=> {
+            const x = padL + i*stepX;
+            const name = (u.full_name || u.email || '').split(' ')[0];
+            const short = name.length > 10 ? name.slice(0,9)+'…' : name;
+            ctx.fillText(short, x, padT + plotH + 8);
+        });
 
-        // Hover tooltip handler (attach once)
+        // Store points for hover
+        _totalLinePoints = totalPts.map((p,i)=> ({x:p.x, y:p.y, u: top[i]}));
+
         if (!canvas._tipBound) {
             canvas._tipBound = true;
-            if (!_userChartTip) {
-                _userChartTip = document.createElement('div');
-                _userChartTip.style.cssText = 'position:fixed; pointer-events:none; background:#1e1e26; color:var(--text); border:1px solid var(--border); border-left:3px solid var(--accent); padding:8px 10px; border-radius:10px; font-size:11px; line-height:1.5; box-shadow:var(--shadow-lg); display:none; z-index:20; max-width:260px;';
-                document.body.appendChild(_userChartTip);
+            if (!_totalLineTip) {
+                _totalLineTip = document.createElement('div');
+                _totalLineTip.style.cssText = 'position:fixed; pointer-events:none; background:#1e1e26; color:var(--text); border:1px solid var(--border); border-left:3px solid var(--accent); padding:8px 10px; border-radius:10px; font-size:11px; line-height:1.5; box-shadow:var(--shadow-lg); display:none; z-index:20; max-width:260px;';
+                document.body.appendChild(_totalLineTip);
             }
             canvas.addEventListener('mousemove', (e)=>{
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                const hit = _userChartRows.find(r=> y >= r.y && y <= r.y2 && x >= r.x && x <= r.x2 + 90);
-                if (hit) {
-                    _userChartTip.innerHTML = `<div style="font-weight:700;">${hit.u.full_name || hit.u.email}</div><div style="color:var(--text-muted);">${hit.u.email} • ${hit.u.department?.toUpperCase()}</div><div style="margin-top:4px;">Total: <strong style="color:var(--accent);">${fmt(hit.u.total_tokens)}</strong> &nbsp; Prompt: ${fmt(hit.u.prompt_tokens)} &nbsp; Completion: ${fmt(hit.u.completion_tokens)}<br>Questions: ${fmt(hit.u.question_count)}</div>`;
-                    _userChartTip.style.left = (e.clientX + 12) + 'px';
-                    _userChartTip.style.top = (e.clientY - 10) + 'px';
-                    _userChartTip.style.display = 'block';
+                // find nearest point by x
+                let best = null, bestDx = Infinity;
+                _totalLinePoints.forEach(p=>{
+                    const dx = Math.abs(p.x - x);
+                    const dy = Math.abs(p.y - y);
+                    if (dx < 18 && dy < 28 && dx < bestDx) { best = p; bestDx = dx; }
+                });
+                if (best) {
+                    _totalLineTip.innerHTML = `<div style="font-weight:700;">${best.u.full_name || best.u.email}</div><div style="color:var(--text-muted);">${best.u.email} • ${best.u.department?.toUpperCase()}</div><div style="margin-top:4px;">Total: <strong style="color:var(--accent);">${fmt(best.u.total_tokens)}</strong> &nbsp; Prompt: <span style="color:${blue};">${fmt(best.u.prompt_tokens)}</span> &nbsp; Completion: <span style="color:${purple};">${fmt(best.u.completion_tokens)}</span><br>Questions: ${fmt(best.u.question_count)}</div>`;
+                    _totalLineTip.style.left = (e.clientX + 12) + 'px';
+                    _totalLineTip.style.top = (e.clientY - 14) + 'px';
+                    _totalLineTip.style.display = 'block';
                     canvas.style.cursor = 'pointer';
                 } else {
-                    _userChartTip.style.display = 'none';
+                    _totalLineTip.style.display = 'none';
                     canvas.style.cursor = 'default';
                 }
             });
-            canvas.addEventListener('mouseleave', ()=> { if(_userChartTip) _userChartTip.style.display='none'; });
-            window.addEventListener('resize', ()=> { if(_userChartRows.length) drawUserChart(users.slice(0,10)); });
+            canvas.addEventListener('mouseleave', ()=> { if(_totalLineTip) _totalLineTip.style.display='none'; });
+            window.addEventListener('resize', ()=> { if(_totalLinePoints.length) drawTotalLineChart(users.slice(0,10)); });
         }
     }
 
@@ -377,7 +350,7 @@
         const tbody = document.getElementById('usageTable');
         if (!d.users || d.users.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No token usage recorded yet. Usage appears after users chat.</div></td></tr>';
-            drawUserChart([]);
+            drawTotalLineChart([]);
             return;
         }
         tbody.innerHTML = d.users.map(u => `
@@ -393,7 +366,7 @@
                 <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(u.total_tokens)}</td>
             </tr>
         `).join('');
-        drawUserChart(d.users);
+        drawTotalLineChart(d.users);
     }
 
     function drawChart(series) {
