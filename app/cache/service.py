@@ -44,12 +44,6 @@ def _get_redis():
         return None
 
 
-def _make_key(prefix: str, *args) -> str:
-    """Create a cache key from prefix and arguments."""
-    raw = f"{prefix}:" + ":".join(str(a) for a in args)
-    return hashlib.md5(raw.encode()).hexdigest()
-
-
 def cache_get(key: str) -> Optional[Dict]:
     """Get value from cache."""
     # Try Redis first
@@ -112,8 +106,15 @@ def cache_delete(pattern: str):
 
 
 def get_rag_cache_key(question: str, department: Optional[str], history_hash: str) -> str:
-    """Generate cache key for RAG query."""
-    return _make_key("rag", question, department or "all", history_hash)
+    """
+    Generate cache key for RAG query.
+    Department stays in PLAINTEXT so a whole department's answers can be
+    purged with a single Redis pattern. Only the volatile part (question +
+    history) is hashed.
+    """
+    dept = (department or "all").lower()
+    volatile = hashlib.md5(f"{question}:{history_hash}".encode()).hexdigest()
+    return f"rag:{dept}:{volatile}"
 
 
 def flush_cache():
