@@ -229,6 +229,18 @@ async def ethos_chatbot(request: Request):
     return templates.TemplateResponse("chat.html", {"request": request})
 
 
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    """Public privacy policy page."""
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page(request: Request):
+    """Public terms of use page."""
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+
 # =============================================================================
 # ADMIN PORTAL — Requires auth (checked client-side via JS)
 # =============================================================================
