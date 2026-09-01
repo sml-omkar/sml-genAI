@@ -69,11 +69,15 @@ services:
     restart: unless-stopped
 
   # --- Ollama Model Initializer (pulls nomic-embed-text on first start) ---
+  # Needs OLLAMA_HOST pointing at the ollama service — this container does NOT
+  # run its own server, it only drives the `ollama` CLI against the server.
   ollama-init:
     image: ollama/ollama:latest
     depends_on:
       ollama:
-        condition: service_started
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
     volumes:
       - ollama_data:/root/.ollama
     entrypoint: /bin/sh

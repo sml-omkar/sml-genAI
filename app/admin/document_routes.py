@@ -132,6 +132,37 @@ async def _process_document(doc_id: str, file_path: str, department: str):
     from app.rag.embeddings import embed_texts
     from app.rag.vectorstore import store_chunks
 
+    # Import helper used to surface setup/import failures. If anything below
+    # raises before the pipeline's own try/except (e.g. a missing dependency
+    # like `ollama`, or a DB error), we mark the document FAILED so the UI no
+    # longer hangs on "uploading" forever.
+    async def _mark_failed(message: str):
+        try:
+            async with AsyncSessionLocal() as _db:
+                _r = await _db.execute(select(Document).where(Document.id == doc_id))
+                _doc = _r.scalar_one_or_none()
+                if _doc and _doc.status == ProcessingStatus.UPLOADING:
+                    _doc.status = ProcessingStatus.FAILED
+                    _doc.error_message = message
+                    _log_pipeline(doc_id, "error", message)
+                    await _db.commit()
+        except Exception as _err:
+            print(f"[RAG] Could not mark document {doc_id} failed: {_err}")
+
+    try:
+        # Imports are pulled in here so that a missing dependency surfaces as a
+        # FAILED status instead of silently leaving the document on "uploading".
+        from app.database import AsyncSessionLocal as _ASL
+        from app.rag.pdf_extractor import extract_pdf_text
+        from app.rag.chunker import chunk_text
+        from app.rag.embeddings import embed_texts
+        from app.rag.vectorstore import store_chunks
+    except Exception as e:
+        _log_pipeline(doc_id, "error", f"Setup failed: {e}")
+        print(f"[RAG] ERROR starting document {doc_id}: {e}")
+        await _mark_failed(f"Processing setup failed: {e}")
+        return
+
     async with AsyncSessionLocal() as db:
         try:
             result = await db.execute(select(Document).where(Document.id == doc_id))
