@@ -10,10 +10,15 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      # Point the Ollama python client at the Ollama service in this network
+      OLLAMA_HOST: http://ollama:11434
     depends_on:
       postgres:
         condition: service_healthy
       chromadb:
+        condition: service_started
+      ollama:
         condition: service_started
     volumes:
       - upload_data:/app/data/uploads
@@ -47,7 +52,43 @@ services:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
 
+  # --- Ollama (local embedding runtime: nomic-embed-text) ---
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  # --- Ollama Model Initializer (pulls nomic-embed-text on first start) ---
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_started
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Waiting for Ollama to be ready..."
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        echo "Pulling nomic-embed-text..."
+        ollama pull nomic-embed-text
+        echo "Model ready."
+    restart: "no"
+
 volumes:
   postgres_data:
   chroma_data:
   upload_data:
+  ollama_data:
