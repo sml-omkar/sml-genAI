@@ -112,16 +112,6 @@ class PolicyBot(TeamsActivityHandler):
             await turn_context.send_activity(Activity(attachments=[attachment]))
             return
 
-        # --- User has no group access ---
-        if user_dept == "__none__":
-            card = build_error_card(
-                "You don't have access to any document folders. "
-                "Please contact your administrator to be assigned to a group."
-            )
-            attachment = create_attachment(card)
-            await turn_context.send_activity(Activity(attachments=[attachment]))
-            return
-
         # --- Server-side user gating ---
         # Trusted sender mode (no gating): any Teams user may query.
         # When the user is registered we apply department filters + admin
@@ -129,6 +119,10 @@ class PolicyBot(TeamsActivityHandler):
         user_id_for_memory = None
         if db_user is None:
             user_dept = None  # search all departments
+        elif user_dept == "__none__":
+            # Registered user without group folder access: in trusted mode
+            # let them search all departments instead of blocking.
+            user_dept = None
         else:
             # Admin-managed access control (enable/disable) + daily token limit.
             try:
