@@ -183,7 +183,26 @@ async def route_intent(question: str, chat_history: Optional[List[Dict]] = None)
         for key in GREETING_RESPONSES:
             if key in q_lower:
                 return "GREETING"
-    
+
+    # Keyword fast path: anything clearly about company documents/policies is a
+    # document query WITHOUT calling the LLM. The LLM router was misclassifying
+    # policy questions like "tell me something about ai policy" as
+    # CONVERSATIONAL, so the bot answered with a generic redirect instead of
+    # searching the documents. False positives here are harmless: the document
+    # pipeline only ever answers from company docs and refuses otherwise.
+    _doc_keywords = {
+        "policy", "policies", "guideline", "guidelines", "procedure",
+        "procedures", "rule", "rules", "regulation", "regulations",
+        "leave", "benefit", "benefits", "holiday", "vacation", "allowance",
+        "insurance", "safety", "security", "performance", "appraisal",
+        "attendance", "overtime", "nda", "manual", "handbook", "compliance",
+        "onboarding", "payroll", "salary", "discipline", "grievance",
+        "hr", "human", "ai", "kb", "process", "document", "documents",
+        "maternity", "paternity", "sick", "half", "termination",
+    }
+    if any(w in _doc_keywords for w in re.findall(r'[a-z0-9]+', q_lower)):
+        return "DOCUMENT_QUERY"
+
     # Use LLM for classification
     history_context = ""
     if chat_history:
