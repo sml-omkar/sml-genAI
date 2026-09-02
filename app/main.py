@@ -163,7 +163,7 @@ async def health_check():
         health["services"]["chromadb"] = {"status": "unhealthy", "error": str(e)}
         health["status"] = "degraded"
     
-    # Check Redis/Cache
+    # Check Cache
     try:
         cache_stats = get_cache_stats()
         health["services"]["cache"] = {

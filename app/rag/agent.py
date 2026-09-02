@@ -628,7 +628,6 @@ async def _query_rag_impl(
         state.answer = answer
         state.add_step("generate", question, answer)
         result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
-        cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
         if debug:
             result["debug"] = state.to_dict()
         return result
@@ -657,7 +656,6 @@ async def _query_rag_impl(
         state.answer = answer
         state.add_step("generate", question, answer)
         result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
-        cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
         if debug:
             result["debug"] = state.to_dict()
         return result
@@ -759,7 +757,6 @@ async def _query_rag_impl(
                 answer = history_answer
                 state.add_step("generate", question, "Answered from conversation history")
                 result = {"answer": answer, "sources": [], "chunks_retrieved": 0}
-                cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
                 if debug:
                     result["debug"] = state.to_dict()
                 return result
@@ -802,9 +799,12 @@ async def _query_rag_impl(
             "chunks_retrieved": len(selected),
             "memory_used": bool(memories),
         }
-    
     # ---- Cache Result ----
-    cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
+    # Only cache genuine document-sourced answers. Never cache the canned
+    # out-of-scope/fallback reply, greetings, or errors — otherwise users see
+    # the same hardcoded answer repeated until the TTL expires.
+    if state.sources:
+        cache_set(cache_key, result, ttl_seconds=settings.CACHE_TTL_SECONDS)
     
     # ---- Add Debug Info ----
     if debug:

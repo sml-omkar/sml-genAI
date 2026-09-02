@@ -67,10 +67,7 @@ class Settings(BaseSettings):
     CONVERSATION_TTL_HOURS: int = 24
     MEMORY_MAX_MESSAGES: int = 10
 
-    # --- Redis Cache ---
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
+    # --- Cache ---
     CACHE_TTL_SECONDS: int = 3600
 
     @property

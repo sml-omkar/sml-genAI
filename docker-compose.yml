@@ -13,8 +13,6 @@ services:
     environment:
       # Point the Ollama python client at the Ollama service in this network
       OLLAMA_HOST: http://ollama:11434
-      # Point the cache service at the Redis container in this network
-      REDIS_HOST: redis
     depends_on:
       postgres:
         condition: service_healthy
@@ -22,8 +20,6 @@ services:
         condition: service_started
       ollama:
         condition: service_started
-      redis:
-        condition: service_healthy
     volumes:
       - upload_data:/app/data/uploads
       - chroma_data:/app/data/chroma
@@ -72,20 +68,6 @@ services:
       retries: 6
     restart: unless-stopped
 
-  # --- Redis (query-answer cache backend) ---
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-    restart: unless-stopped
-
-
   # --- Ollama Model Initializer (pulls nomic-embed-text on first start) ---
   # Needs OLLAMA_HOST pointing at the ollama service — this container does NOT
   # run its own server, it only drives the `ollama` CLI against the server.
@@ -114,4 +96,3 @@ volumes:
   chroma_data:
   upload_data:
   ollama_data:
-  redis_data:
