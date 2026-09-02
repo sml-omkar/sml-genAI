@@ -132,6 +132,11 @@ async def create_user(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="A user with this email already exists.")
 
+    if request.aad_object_id:
+        existing_aad = await db.execute(select(User).where(User.aad_object_id == request.aad_object_id))
+        if existing_aad.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="A user with this Teams AAD Object ID already exists.")
+
     new_user = User(
         email=request.email,
         hashed_password=hash_password(request.password),
@@ -140,6 +145,7 @@ async def create_user(
         role=target_role,
         chat_access_enabled=request.chat_access_enabled,
         daily_token_limit=max(0, request.daily_token_limit or 0),
+        aad_object_id=request.aad_object_id or None,
     )
     db.add(new_user)
     await db.flush()

@@ -44,6 +44,7 @@ class UserCreateRequest(BaseModel):
     role: str = "user"
     chat_access_enabled: bool = True
     daily_token_limit: int = 0
+    aad_object_id: Optional[str] = None
 
 
 class UserUpdateRequest(BaseModel):
