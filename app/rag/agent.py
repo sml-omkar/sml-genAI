@@ -618,10 +618,21 @@ async def _query_rag_impl(
     state = AgentState(question=question)
     
     # ---- Check cache first ----
+    # A repeated question means the user wasn't satisfied with the previous
+    # answer — never serve a cached reply for it, always regenerate from the LLM.
+    is_repeat_question = False
+    if chat_history:
+        prev_user_msgs = [m for m in chat_history if m.get("role") == "user"]
+        if prev_user_msgs:
+            prev = prev_user_msgs[-1].get("content", "").strip().lower()
+            is_repeat_question = prev == question.strip().lower()
+    if is_repeat_question:
+        print(f"[AGENT] Repeat question detected — bypassing cache, regenerating answer")
+
     history_hash = hashlib.md5(str(chat_history or [])[:500].encode()).hexdigest()[:8]
     cache_key = get_rag_cache_key(question, department, history_hash)
     cached = cache_get(cache_key)
-    if cached:
+    if cached and not is_repeat_question:
         state.add_step("cache", question, "Cache hit", hit=True)
         state.answer = cached.get("answer", "")
         state.sources = cached.get("sources", [])
