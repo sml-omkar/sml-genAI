@@ -5,6 +5,7 @@ checks group-based access, queries RAG pipeline, responds with Adaptive Cards.
 """
 
 import json
+import uuid
 from fastapi import APIRouter, Request, Response
 from botbuilder.core import TurnContext
 from botbuilder.schema import Activity, ActivityTypes
@@ -160,10 +161,11 @@ class PolicyBot(TeamsActivityHandler):
                 max_messages=settings.MEMORY_MAX_MESSAGES,
             )
 
-            # Use Teams conversation ID for memory
+            # Use Teams conversation ID for memory (map to stable UUID)
             teams_conv_id = turn_context.activity.conversation.id
+            conv_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"teams-{teams_conv_id}"))
             conv = await memory.get_or_create_conversation(
-                conversation_id=teams_conv_id,
+                conversation_id=conv_uuid,
                 user_id=user_id_for_memory,
             )
             conv_id = str(conv.id)
