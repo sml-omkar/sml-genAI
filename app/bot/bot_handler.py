@@ -98,7 +98,7 @@ class PolicyBot(TeamsActivityHandler):
         # --- Extract the question text ---
         text = turn_context.activity.text or ""
         if turn_context.activity.entities:
-            text = turn_context.activity.remove_recipient_mention(text).strip()
+            text = TurnContext.remove_recipient_mention(turn_context.activity).strip()
 
         if not text:
             await turn_context.send_activity("Please type a question to get started.")
