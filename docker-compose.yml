@@ -13,6 +13,9 @@ services:
     environment:
       # Point the Ollama python client at the Ollama service in this network
       OLLAMA_HOST: http://ollama:11434
+      # Persist ChromaDB inside the named volume (was ./data/chroma_db on the
+      # container's ephemeral layer — wiped on every container recreate!)
+      CHROMA_PERSIST_DIR: /app/data/chroma
     depends_on:
       postgres:
         condition: service_healthy

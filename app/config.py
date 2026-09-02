@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSIONS: int = 768
 
     # --- ChromaDB ---
-    CHROMA_PERSIST_DIR: str = "./data/chroma_db"
+    CHROMA_PERSIST_DIR: str = "./data/chroma"
     CHROMA_COLLECTION: str = "policy_chunks"
 
     # --- JWT ---
