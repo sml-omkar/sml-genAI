@@ -123,38 +123,36 @@ class PolicyBot(TeamsActivityHandler):
             return
 
         # --- Server-side user gating ---
-        # Only users registered (and active) in the database may query the LLM.
+        # Trusted sender mode (no gating): any Teams user may query.
+        # When the user is registered we apply department filters + admin
+        # access control; otherwise they search all departments with no cap.
+        user_id_for_memory = None
         if db_user is None:
-            card = build_error_card(
-                "Your account is not registered with EthosAI. "
-                "Please ask your administrator to add your email before using this assistant."
-            )
-            attachment = create_attachment(card)
-            await turn_context.send_activity(Activity(attachments=[attachment]))
-            return
+            user_dept = None  # search all departments
+        else:
+            # Admin-managed access control (enable/disable) + daily token limit.
+            try:
+                from app.admin.access import check_user_can_use_chat
+                from app.database import AsyncSessionLocal
 
-        # Admin-managed access control (enable/disable) + daily token limit.
-        try:
-            from app.admin.access import check_user_can_use_chat
-            from app.database import AsyncSessionLocal
-
-            async with AsyncSessionLocal() as db:
-                # Reload user within this session so relationships/columns are fresh
-                db_user = await db.get(User, db_user.id)
-                allowed, reason = await check_user_can_use_chat(db, db_user)
-            if not allowed:
-                card = build_error_card(reason)
+                async with AsyncSessionLocal() as db:
+                    # Reload user within this session so relationships/columns are fresh
+                    db_user = await db.get(User, db_user.id)
+                    allowed, reason = await check_user_can_use_chat(db, db_user)
+                if not allowed:
+                    card = build_error_card(reason)
+                    attachment = create_attachment(card)
+                    await turn_context.send_activity(Activity(attachments=[attachment]))
+                    return
+                user_id_for_memory = str(db_user.id)
+            except Exception as e:
+                print(f"[BOT] Access check failed: {e}")
+                card = build_error_card(
+                    "I could not verify your access right now. Please try again later."
+                )
                 attachment = create_attachment(card)
                 await turn_context.send_activity(Activity(attachments=[attachment]))
                 return
-        except Exception as e:
-            print(f"[BOT] Access check failed: {e}")
-            card = build_error_card(
-                "I could not verify your access right now. Please try again later."
-            )
-            attachment = create_attachment(card)
-            await turn_context.send_activity(Activity(attachments=[attachment]))
-            return
 
         # --- Query the RAG pipeline ---
         try:
@@ -172,7 +170,7 @@ class PolicyBot(TeamsActivityHandler):
             teams_conv_id = turn_context.activity.conversation.id
             conv = await memory.get_or_create_conversation(
                 conversation_id=teams_conv_id,
-                user_id=str(db_user.id),
+                user_id=user_id_for_memory,
             )
             conv_id = str(conv.id)
 
