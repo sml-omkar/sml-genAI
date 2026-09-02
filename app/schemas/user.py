@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     is_active: bool
     chat_access_enabled: bool = True
     daily_token_limit: int = 0
+    aad_object_id: Optional[str] = None
     created_at: datetime
 
     @field_validator('id', mode='before')
@@ -54,6 +55,7 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str] = None
     chat_access_enabled: Optional[bool] = None
     daily_token_limit: Optional[int] = None
+    aad_object_id: Optional[str] = None
 
 
 class DashboardStats(BaseModel):

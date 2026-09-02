@@ -260,6 +260,6 @@ async def messages(request: Request):
             content={"error": "Teams bot is not configured (MicrosoftAppId/MicrosoftAppPassword missing)."},
         )
 
-    await adapter.process_activity(activity, auth_header, bot.on_turn)
+    await adapter.process_activity(auth_header, activity, bot.on_turn)
 
     return Response(status_code=200)

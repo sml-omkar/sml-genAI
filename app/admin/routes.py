@@ -184,6 +184,8 @@ async def update_user(
         user.daily_token_limit = request.daily_token_limit
     if request.password is not None:
         user.hashed_password = hash_password(request.password)
+    if request.aad_object_id is not None:
+        user.aad_object_id = request.aad_object_id or None
 
     await db.flush()
     await db.refresh(user)
@@ -197,9 +199,9 @@ async def download_bulk_template(
     """Download CSV template for bulk user upload."""
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["email", "full_name", "password", "department", "role", "daily_token_limit", "chat_access_enabled"])
-    writer.writerow(["alice@company.com", "Alice Smith", "TempPass123", "it", "user", "5000", "true"])
-    writer.writerow(["bob@company.com", "Bob Jones", "TempPass123", "hr", "dept_admin", "0", "true"])
+    writer.writerow(["email", "full_name", "password", "department", "role", "daily_token_limit", "chat_access_enabled", "aad_object_id"])
+    writer.writerow(["alice@company.com", "Alice Smith", "TempPass123", "it", "user", "5000", "true", "9f8c1d2e-0000-1111-2222-333344445555"])
+    writer.writerow(["bob@company.com", "Bob Jones", "TempPass123", "hr", "dept_admin", "0", "true", ""])
     output.seek(0)
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode()),
@@ -216,11 +218,15 @@ async def bulk_upload_users(
 ):
     """
     Bulk create users from a CSV file.
-    Expected columns: email, full_name, password, department, role, daily_token_limit, chat_access_enabled
+    Expected columns: email, full_name, password, department, role, daily_token_limit, chat_access_enabled, aad_object_id
     - department: hr | it | finance (or slug from departments table)
     - role: user | dept_admin | super_admin
     - daily_token_limit: integer, 0 = unlimited (default 0)
     - chat_access_enabled: true/false (default true)
+    - aad_object_id: optional. Teams sends aadObjectId in every message even
+      without SSO, while it does NOT send the user's email. Populating this
+      column (one-time export from M365 Admin Center → Users) lets the Teams
+      bot recognize each user reliably with zero SSO configuration.
     """
     if not file.filename or not file.filename.lower().endswith((".csv", ".txt")):
         raise HTTPException(status_code=400, detail="Please upload a .csv file.")
@@ -267,9 +273,11 @@ async def bulk_upload_users(
     skipped = 0
     errors = []
     seen_in_file = set()
+    seen_aad_in_file = set()
 
     # Preload existing emails for fast duplicate check
     all_emails = set(r[0].lower() for r in (await db.execute(select(User.email))).all())
+    all_aad_ids = set(r[0] for r in (await db.execute(select(User.aad_object_id).where(User.aad_object_id.isnot(None)))).all())
 
     for idx, row in enumerate(reader, start=2):  # row 2 = first data row
         email = get_val(row, "email", "").lower()
@@ -279,6 +287,7 @@ async def bulk_upload_users(
         role = get_val(row, "role", "").lower() or "user"
         daily_limit_raw = get_val(row, "daily_token_limit", "0")
         chat_enabled_raw = get_val(row, "chat_access_enabled", "true").lower()
+        aad_id = get_val(row, "aad_object_id", "").strip()
 
         # Skip completely empty rows
         if not any([email, full_name, password, department, role]):
@@ -295,6 +304,14 @@ async def bulk_upload_users(
             skipped += 1
             errors.append({"row": idx, "email": email, "error": "Already exists — skipped"})
             continue
+        if aad_id:
+            if aad_id in seen_aad_in_file:
+                errors.append({"row": idx, "email": email, "error": "Duplicate aad_object_id inside CSV"})
+                continue
+            if aad_id in all_aad_ids:
+                skipped += 1
+                errors.append({"row": idx, "email": email, "error": "aad_object_id already exists — skipped"})
+                continue
         if not full_name:
             errors.append({"row": idx, "email": email, "error": "full_name is required"})
             continue
@@ -329,6 +346,9 @@ async def bulk_upload_users(
 
         seen_in_file.add(email)
         all_emails.add(email)
+        if aad_id:
+            seen_aad_in_file.add(aad_id)
+            all_aad_ids.add(aad_id)
 
         try:
             new_user = User(
@@ -339,6 +359,7 @@ async def bulk_upload_users(
                 role=target_role,
                 chat_access_enabled=chat_enabled,
                 daily_token_limit=max(0, daily_limit),
+                aad_object_id=aad_id or None,
             )
             db.add(new_user)
             await db.flush()
