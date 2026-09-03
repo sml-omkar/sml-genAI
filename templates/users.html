@@ -114,11 +114,6 @@
                         <div class="help">0 = no cap. e.g. 10000</div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Teams AAD Object ID <span style="font-weight:400; color:var(--text-muted);">(needed for Teams bot login)</span></label>
-                    <input type="text" name="aad_object_id" placeholder="9a8f7c6b-…  (from M365 Admin → Users → export)">
-                    <div class="help">Teams sends this instead of email. Leave blank for web login only.</div>
-                </div>
                 <label style="display:flex; gap:8px; align-items:center; margin:10px 0; font-weight:500;"><input type="checkbox" name="chat_access_enabled" checked value="true" style="width:auto;"> Chat access enabled</label>
                 <div id="userError" style="color:var(--red);font-size:12px;margin:10px 0;display:none; padding:10px; border-radius:10px; background:var(--red-dim); border:1px solid var(--accent-border);"></div>
                 <div class="xp-form-actions">
@@ -155,11 +150,6 @@
                 <div class="form-row">
                     <div class="form-group"><label>Daily Token Limit</label><input type="number" id="editLimit" min="0" step="500"></div>
                     <div class="form-group"><label>New Password <span style="font-weight:400; color:var(--text-muted);">(leave blank to keep)</span></label><input type="password" id="editPass" placeholder="••••••••"></div>
-                </div>
-                <div class="form-group">
-                    <label>Teams AAD Object ID <span style="font-weight:400; color:var(--text-muted);">(needed for Teams bot login)</span></label>
-                    <input type="text" id="editAadId" placeholder="9a8f7c6b-…  (from M365 Admin → Users → export)">
-                    <div class="help">Teams sends this instead of email. Leave blank for web login only.</div>
                 </div>
                 <label style="display:flex; gap:8px; align-items:center; margin:6px 0;"><input type="checkbox" id="editActive" style="width:auto;"> Active</label>
                 <label style="display:flex; gap:8px; align-items:center; margin:6px 0;"><input type="checkbox" id="editChat" style="width:auto;"> Chat access enabled</label>
@@ -347,7 +337,6 @@
         const data = Object.fromEntries(fd);
         data.daily_token_limit = parseInt(data.daily_token_limit||'0',10) || 0;
         data.chat_access_enabled = fd.get('chat_access_enabled') ? true : false;
-        data.aad_object_id = (data.aad_object_id||'').trim() || null;
         // checkbox sends "true" when checked, undefined when not — handle
         if(e.target.querySelector('[name=chat_access_enabled]').checked) data.chat_access_enabled = true; else data.chat_access_enabled = false;
         const errEl = document.getElementById('userError'); errEl.style.display='none';
@@ -367,7 +356,6 @@
         document.getElementById('editLimit').value = a.daily_token_limit ?? u.daily_token_limit ?? 0;
         document.getElementById('editActive').checked = !!u.is_active;
         document.getElementById('editChat').checked = a.chat_access_enabled !== undefined ? a.chat_access_enabled : !!u.chat_access_enabled;
-        document.getElementById('editAadId').value = u.aad_object_id || '';
         document.getElementById('editPass').value = '';
         document.getElementById('editError').style.display='none';
         loadDepts().then(()=>{ document.getElementById('editDept').value = u.department; });
@@ -383,7 +371,6 @@
             is_active: document.getElementById('editActive').checked,
             chat_access_enabled: document.getElementById('editChat').checked,
             daily_token_limit: parseInt(document.getElementById('editLimit').value||'0',10)||0,
-            aad_object_id: document.getElementById('editAadId').value.trim() || null,
         };
         const pw = document.getElementById('editPass').value; if(pw) payload.password = pw;
         const errEl = document.getElementById('editError'); errEl.style.display='none';

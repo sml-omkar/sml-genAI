@@ -96,26 +96,16 @@
     </div>
 </div>
 
-<!-- GRAPH ROW 2: TOP USERS + TEAMS -->
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+<!-- GRAPH ROW 2: TOP USERS (Teams aggregate via Donut/Daily, no per-AAD) -->
+<div style="display:grid; grid-template-columns: 1fr; gap:14px; margin-bottom:14px;">
     <div class="card">
-        <div class="card-header">Top Web Users <small>By tokens in period • Top 5</small> <span class="badge badge-hr" style="margin-left:auto;">Web</span></div>
+        <div class="card-header">Top Users <small>By tokens in period • Top 5 (all sources)</small> <span class="badge badge-hr" style="margin-left:auto;">All</span></div>
         <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px; position:relative;">
             <canvas id="topUsersChart" height="200" style="width:100%;"></canvas>
             <div id="topUsersEmpty" class="empty-state" style="display:none; position:absolute; inset:12px; background:var(--bg-input); border-radius:10px;">
-                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>No web usage in period
+                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>No usage in period
             </div>
         </div>
-    </div>
-    <div class="card">
-        <div class="card-header">Top Teams Users <small>By Teams tokens • Top 5</small> <span class="badge badge-it" style="margin-left:auto;">Teams</span></div>
-        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px; position:relative;">
-            <canvas id="topTeamsChart" height="200" style="width:100%;"></canvas>
-            <div id="topTeamsEmpty" class="empty-state" style="display:none; position:absolute; inset:12px; background:var(--bg-input); border-radius:10px;">
-                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>No Teams usage — chat in Teams
-            </div>
-        </div>
-        <div class="help" style="margin-top:8px; text-align:center;">Unlinked = needs <span class="kbd">aad_object_id</span> in Users</div>
     </div>
 </div>
 
@@ -171,51 +161,7 @@
     </div>
 </div>
 
-<!-- TEAMS USAGE -->
-<div class="card" style="margin-bottom:14px;" id="teamsUsageCard">
-    <div class="card-header">Teams Token Usage <small>Per-Teams-user via <span class="kbd">/api/messages</span> • segregated by AAD Object ID</small> <span id="teamsTotalBadge" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px; margin-left:auto; display:none;"></span></div>
-    <div class="stat-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:10px;" id="teamsStatsGrid">
-        <div class="stat-card c-blue" style="padding:14px;">
-            <div class="label">Teams Requests</div>
-            <div class="value" id="statTeamsRequests" style="font-size:22px;">—</div>
-            <div class="sub">via Teams bot</div>
-        </div>
-        <div class="stat-card c-purple" style="padding:14px;">
-            <div class="label">Teams Identities</div>
-            <div class="value" id="statTeamsIds" style="font-size:22px;">—</div>
-            <div class="sub">Distinct AAD IDs</div>
-        </div>
-        <div class="stat-card c-orange" style="padding:14px;">
-            <div class="label">Teams Tokens</div>
-            <div class="value" id="statTeamsTokens" style="font-size:22px;">—</div>
-            <div class="sub">Prompt+completion</div>
-        </div>
-        <div class="stat-card c-green" style="padding:14px;">
-            <div class="label">Source Split</div>
-            <div class="value" id="statSourceSplit" style="font-size:12px; line-height:1.4; word-break:break-word; min-height:28px;">—</div>
-            <div class="sub">Web vs Teams</div>
-        </div>
-    </div>
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Teams User</th>
-                    <th>Linked App User</th>
-                    <th style="text-align:right">Requests</th>
-                    <th style="text-align:right">Prompt</th>
-                    <th style="text-align:right">Completion</th>
-                    <th style="text-align:right">Total</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="teamsTable">
-                <tr><td colspan="7"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>Loading Teams usage…</div></td></tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="help" style="margin-top:8px;">Same LLM tokens, but segregated by Teams <span class="kbd">aad_object_id</span>. <span id="teamsLegacyNote" style="display:none; color:var(--yellow);"></span> Tip: add <span class="kbd">aad_object_id</span> to Users via CSV bulk upload to link Teams senders to app users.</div>
-</div>
+<!-- TEAMS AGGREGATE NOTE: /api/messages tracked as Teams source (no per-AAD) -->
 
 <!-- RBAC OVERVIEW -->
 <div class="card">
@@ -476,53 +422,12 @@
         }catch(e){ console.error(e); }
     }
 
-    async function renderTopTeams(){
-        try{
-            const r=await authFetch('/api/admin/usage/teams');
-            const d=await r.json();
-            const top=(d.teams||[]).slice(0,5);
-            const labels=top.map(t=> (t.teams_name|| t.teams_email|| t.teams_aad_id||'Unknown').slice(0,14));
-            const vals=top.map(t=> t.total_tokens||0);
-            renderBarH('topTeamsChart','topTeamsEmpty', labels, vals, 'rgba(167,139,250,0.9)', 'No teams');
-            // update teams mini stats
-            document.getElementById('statTeamsRequests').textContent = fmt(d.total_requests);
-            document.getElementById('statTeamsIds').textContent = fmt(d.total_teams_identities);
-            document.getElementById('statTeamsTokens').textContent = fmt(d.total_tokens);
-            const badge=document.getElementById('teamsTotalBadge');
-            if(badge){ badge.textContent = d.total_teams_identities ? `${fmt(d.total_teams_identities)} • ${fmt(d.total_tokens)}` : ''; badge.style.display = d.total_teams_identities?'inline-flex':'none'; }
-            const tbody=document.getElementById('teamsTable');
-            const note=document.getElementById('teamsLegacyNote');
-            if(d.legacy_unidentified && d.legacy_unidentified.requests){ note.style.display='inline'; note.textContent=`⚠ ${fmt(d.legacy_unidentified.requests)} legacy without AAD — ${fmt(d.legacy_unidentified.total_tokens)}.`; }
-            if(!d.teams || d.teams.length===0){
-                const msg = d.total_requests===0 ? 'No Teams usage yet — chat in Teams.' : 'No AAD-identified Teams users.';
-                tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>${msg}</div></td></tr>`;
-                return;
-            }
-            tbody.innerHTML = d.teams.map(t=> `
-                <tr>
-                    <td><div style="font-weight:700; font-size:13px;">${t.teams_name||'Unknown'}</div><div style="font-size:11px; color:var(--text-muted); word-break:break-all;">${t.teams_email||''}</div><div style="font-size:10px; color:var(--text-faint); font-family:JetBrains Mono, monospace; word-break:break-all;">${t.teams_aad_id||''}</div></td>
-                    <td>${t.is_registered ? `<div style="font-weight:600; font-size:12px;">${t.linked_name||t.linked_email}</div><div style="font-size:11px; color:var(--text-muted);">${t.linked_email||''}</div>${t.linked_department?`<span class="badge badge-${t.linked_department}" style="margin-top:4px;">${t.linked_department.toUpperCase()}</span>`:''}` : '<span style="color:var(--yellow); font-size:11px; font-weight:600;">Not linked</span>'}</td>
-                    <td style="text-align:right; font-weight:600;">${fmt(t.requests)}</td>
-                    <td style="text-align:right; color:var(--text-secondary);">${fmt(t.prompt_tokens)}</td>
-                    <td style="text-align:right; color:var(--text-secondary);">${fmt(t.completion_tokens)}</td>
-                    <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(t.total_tokens)}</td>
-                    <td>${t.is_registered ? '<span class="badge badge-ready">Linked</span>' : '<span class="badge badge-failed">Unlinked</span>'}</td>
-                </tr>`).join('');
-        }catch(e){
-            console.error(e);
-            const tb=document.getElementById('teamsTable');
-            if(tb) tb.innerHTML=`<tr><td colspan="7"><div class="empty-state">Teams unavailable — ${e.message}</div></td></tr>`;
-        }
-    }
-
     async function loadSourceOverview(){
         try{
             const r=await authFetch('/api/admin/usage/overview'); if(!r.ok) return;
             const d=await r.json(); const by=d.by_source||{}; const w=by.web||{total_tokens:0, requests:0}; const t=by.teams||{total_tokens:0, requests:0};
-            const el=document.getElementById('statSourceSplit');
-            if(el) el.innerHTML=`<span style="color:#38bdf8;">Web ${fmt(w.requests)}q / ${fmt(w.total_tokens)}</span><br><span style="color:#a78bfa;">Teams ${fmt(t.requests)}q / ${fmt(t.total_tokens)}</span>`;
             const badge=document.getElementById('globalTotalBadge');
-            if(badge && d.total) { badge.textContent=`All time Σ ${fmt(d.total.total_tokens)} • ${fmt(d.total.requests)} qs`; badge.style.display='inline-flex'; }
+            if(badge && d.total) { badge.textContent=`All time Σ ${fmt(d.total.total_tokens)} • ${fmt(d.total.requests)} qs (Web ${fmt(w.total_tokens)} / Teams ${fmt(t.total_tokens)})`; badge.style.display='inline-flex'; }
         }catch(e){}
     }
 
@@ -531,12 +436,12 @@
     }
     async function refreshAll(){
         _periodDays = parseInt(document.getElementById('periodSelect')?.value||'14',10);
-        await Promise.all([loadOverview(), loadSourceOverview(), renderDailySplit(), renderSourceDonut(), renderTopUsers(), renderTopTeams()]);
+        await Promise.all([loadOverview(), loadSourceOverview(), renderDailySplit(), renderSourceDonut(), renderTopUsers()]);
     }
 
     // init
     populateMonthSelect();
-    loadOverview(); loadSourceOverview(); renderDailySplit(); renderSourceDonut(); renderTopUsers(); renderTopTeams(); loadRBAC();
+    loadOverview(); loadSourceOverview(); renderDailySplit(); renderSourceDonut(); renderTopUsers(); loadRBAC();
     document.getElementById('periodSelect')?.addEventListener('change', e=>{ _periodDays=parseInt(e.target.value,10); if(_periodDays===30 && document.getElementById('monthSelect').value) { /* month mode handled in renderDailySplit */ } refreshCharts(); });
     document.getElementById('monthSelect')?.addEventListener('change', refreshCharts);
 </script>
