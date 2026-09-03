@@ -26,6 +26,14 @@ class Conversation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
     title = Column(String(500), nullable=True)
+    # Source tracks where the conversation originated: 'web' (/api/chat), 'teams' (/api/messages)
+    source = Column(String(20), nullable=True, index=True)
+    # Teams identity — stored even when user_id is null (unregistered Teams users)
+    # This enables per-Teams-user token analytics without requiring a User row.
+    teams_aad_id = Column(String(255), nullable=True, index=True)
+    teams_email = Column(String(255), nullable=True)
+    teams_name = Column(String(255), nullable=True)
+    teams_channel_id = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -33,6 +41,8 @@ class Conversation(Base):
 
     __table_args__ = (
         Index("idx_conversations_user_updated", "user_id", "updated_at"),
+        Index("idx_conversations_teams_aad", "teams_aad_id"),
+        Index("idx_conversations_source", "source"),
     )
 
 

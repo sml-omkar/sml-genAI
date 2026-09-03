@@ -100,6 +100,28 @@ async def init_db():
         await conn.execute(text(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_token_limit INTEGER NOT NULL DEFAULT 0"
         ))
+        # Migration: Teams identity tracking on conversations (no-op if present)
+        await conn.execute(text(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS source VARCHAR(20)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_aad_id VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_email VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_name VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_channel_id VARCHAR(500)"
+        ))
+        # Indexes for the new columns (IF NOT EXISTS is PG 9.5+, safe to try)
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_teams_aad ON conversations(teams_aad_id)"))
+        except Exception:
+            pass
 
     # Seed default departments if none exist
     from sqlalchemy import select, func

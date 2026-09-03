@@ -27,6 +27,11 @@ class MemoryService:
         self,
         conversation_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        source: Optional[str] = None,
+        teams_aad_id: Optional[str] = None,
+        teams_email: Optional[str] = None,
+        teams_name: Optional[str] = None,
+        teams_channel_id: Optional[str] = None,
     ) -> Conversation:
         """Get existing conversation or create a new one."""
         async with AsyncSessionLocal() as db:
@@ -40,15 +45,51 @@ class MemoryService:
                     if self._is_expired(conv):
                         await self._delete_conversation(db, conv)
                         await db.commit()
-                        return await self._create_conversation(db, user_id)
+                        return await self._create_conversation(
+                            db, user_id, source, teams_aad_id, teams_email, teams_name, teams_channel_id
+                        )
+                    # Backfill Teams identity if conversation was created before these columns existed
+                    updated = False
+                    if source and not conv.source:
+                        conv.source = source
+                        updated = True
+                    if teams_aad_id and not conv.teams_aad_id:
+                        conv.teams_aad_id = teams_aad_id
+                        updated = True
+                    if teams_email and not conv.teams_email:
+                        conv.teams_email = teams_email
+                        updated = True
+                    if teams_name and not conv.teams_name:
+                        conv.teams_name = teams_name
+                        updated = True
+                    if teams_channel_id and not conv.teams_channel_id:
+                        conv.teams_channel_id = teams_channel_id
+                        updated = True
+                    if updated:
+                        await db.commit()
+                        await db.refresh(conv)
                     return conv
 
-            return await self._create_conversation(db, user_id)
+            return await self._create_conversation(db, user_id, source, teams_aad_id, teams_email, teams_name, teams_channel_id)
 
-    async def _create_conversation(self, db: AsyncSession, user_id: Optional[str] = None) -> Conversation:
+    async def _create_conversation(
+        self,
+        db: AsyncSession,
+        user_id: Optional[str] = None,
+        source: Optional[str] = None,
+        teams_aad_id: Optional[str] = None,
+        teams_email: Optional[str] = None,
+        teams_name: Optional[str] = None,
+        teams_channel_id: Optional[str] = None,
+    ) -> Conversation:
         conv = Conversation(
             user_id=UUID(user_id) if user_id else None,
             title=None,
+            source=source,
+            teams_aad_id=teams_aad_id,
+            teams_email=teams_email,
+            teams_name=teams_name,
+            teams_channel_id=teams_channel_id,
         )
         db.add(conv)
         await db.commit()

@@ -351,6 +351,11 @@ async def chat_endpoint(request: ChatMessage, db: AsyncSession = Depends(get_db)
     conv = await memory.get_or_create_conversation(
         conversation_id=request.conversation_id,
         user_id=user_id,
+        source="web",
+        teams_aad_id=None,
+        teams_email=user_email,
+        teams_name=db_user.full_name if db_user else None,
+        teams_channel_id=None,
     )
     conv_id = str(conv.id)
 
