@@ -3,7 +3,7 @@
 {% block header %}
 <div class="header-left">
     <h2><span class="hdr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span> Dashboard</h2>
-    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Overview of people, content and access control</div>
+    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Usage analytics • Web + Teams • Tokens & users at a glance</div>
 </div>
 {% endblock %}
 {% block content %}
@@ -36,49 +36,97 @@
     </div>
 </div>
 
-<div style="display:grid; grid-template-columns: 1.35fr 0.85fr; gap:14px; margin-bottom:14px;">
-    <div class="card">
-        <div class="card-header" style="flex-wrap:wrap; gap:10px;">Total Token Usage — By Month <small>Daily bars • today at far right</small> <div style="display:flex; gap:8px; align-items:center; margin-left:auto;"><select id="monthSelect" style="padding:6px 10px; border-radius:8px; background:var(--bg-input); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:inherit; min-width:130px;"></select><select id="periodSelect" style="padding:6px 10px; border-radius:8px; background:var(--bg-input); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:inherit;"><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">This month</option></select></div><span id="totalTokensLabel" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px;"></span></div>
-        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 10px; position:relative;">
-            <canvas id="userChart" height="220" style="width:100%; display:block;"></canvas>
-            <div id="userChartEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
-                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No usage yet — line appears after users chat.
-            </div>
-        </div>
-        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); align-items:center;">
-            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:14px;height:10px;background:var(--accent); display:inline-block; border-radius:3px;"></span> Total tokens per day</span>
-            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;background:#ff2d2d; display:inline-block; border-radius:3px; border:1px solid #ff5252;"></span> Today (rightmost)</span>
-            <span style="margin-left:auto; color:var(--text-faint);" class="help">Daily • today at far right • dates below</span>
+<!-- GLOBAL CONTROLS -->
+<div class="card" style="padding:12px 16px; margin-bottom:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:linear-gradient(180deg, #1a1a20, #15151b);">
+    <div style="display:flex; gap:8px; align-items:center;">
+        <span style="font-size:11px; font-weight:700; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase;">Period</span>
+        <select id="periodSelect" style="padding:7px 12px; border-radius:9px; background:var(--bg-input); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:inherit; min-width:130px;">
+            <option value="7">Last 7 days</option>
+            <option value="14" selected>Last 14 days</option>
+            <option value="30">Last 30 days</option>
+        </select>
+        <select id="monthSelect" style="padding:7px 10px; border-radius:9px; background:var(--bg-input); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:inherit; min-width:140px;"></select>
+    </div>
+    <div style="height:22px; width:1px; background:var(--border); margin:0 4px;"></div>
+    <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:11px; font-weight:700; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase;">Source</span>
+        <div style="display:flex; gap:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:10px; padding:3px;">
+            <button class="pill active" data-source="all" onclick="setSource('all')" id="srcAll" style="padding:6px 12px; border-radius:7px; border:none; cursor:pointer; font-size:11px;">All</button>
+            <button class="pill" data-source="web" onclick="setSource('web')" id="srcWeb" style="padding:6px 12px; border-radius:7px; border:none; cursor:pointer; font-size:11px;">Web</button>
+            <button class="pill" data-source="teams" onclick="setSource('teams')" id="srcTeams" style="padding:6px 12px; border-radius:7px; border:none; cursor:pointer; font-size:11px;">Teams</button>
         </div>
     </div>
-    <div class="card">
-        <div class="card-header">System <small>Runtime</small></div>
-        <div style="display:grid; gap:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
-                <div><div style="font-weight:700; font-size:12.5px;">LLM</div><div style="font-size:11px; color:var(--text-muted);">RAG pipeline</div></div><span class="badge badge-ready">OpenAI</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
-                <div><div style="font-weight:700; font-size:12.5px;">Embeddings</div><div style="font-size:11px; color:var(--text-muted);">Vector search</div></div><span class="badge badge-hr">nomic-embed-text</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
-                <div><div style="font-weight:700; font-size:12.5px;">Vector DB</div><div style="font-size:11px; color:var(--text-muted);">ChromaDB</div></div><span class="badge badge-it">Chroma</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border);">
-                <div><div style="font-weight:700; font-size:12.5px;">Database</div><div style="font-size:11px; color:var(--text-muted);">PostgreSQL 16</div></div><span class="badge badge-ready">Connected</span>
-            </div>
-        </div>
-        <div class="help" style="margin-top:10px;">Auth is JWT • Teams bot via <span class="kbd">/api/messages</span> • EC2-hosted</div>
+    <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <span id="globalTotalBadge" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:6px 12px; border-radius:20px; display:none;"></span>
+        <button class="btn btn-sm" onclick="refreshAll()" style="padding:7px 12px;">↻ Refresh</button>
     </div>
 </div>
 
-<!-- TOKEN USAGE -->
+<!-- GRAPH ROW 1: DAILY STACKED + SOURCE DONUT -->
+<div style="display:grid; grid-template-columns: 1.7fr 0.85fr; gap:14px; margin-bottom:14px;">
+    <div class="card">
+        <div class="card-header" style="flex-wrap:wrap; gap:8px;">Daily Token Trend <small id="dailySubtitle" style="color:var(--text-muted);">Stacked Web vs Teams • today at right</small> <span id="dailyTotalLabel" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px; margin-left:auto;"></span></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px 14px 6px; position:relative;">
+            <canvas id="dailySplitChart" height="240" style="width:100%; display:block;"></canvas>
+            <div id="dailySplitEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
+                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No usage in this period — appears after users chat.
+            </div>
+        </div>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-muted); align-items:center;">
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:12px;height:12px;background:#38bdf8; display:inline-block; border-radius:3px;"></span> Web (console)</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:12px;height:12px;background:#a78bfa; display:inline-block; border-radius:3px;"></span> Teams (bot)</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:12px;height:12px;background:var(--accent); display:inline-block; border-radius:3px; border:1px solid #ff5252;"></span> Today</span>
+            <span style="margin-left:auto; color:var(--text-faint);" class="help">Hover for prompt vs completion breakdown</span>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Traffic by Source <small>Share of tokens</small></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:14px; position:relative; display:grid; place-items:center; min-height:260px;">
+            <canvas id="sourceDonut" height="200" style="max-width:220px; max-height:220px;"></canvas>
+            <div id="sourceDonutEmpty" class="empty-state" style="display:none; position:absolute; inset:14px; background:var(--bg-input); border-radius:10px;">
+                <div class="es-icon">◯</div>No tokens yet
+            </div>
+            <div id="sourceDonutCenter" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none;">
+                <div id="donutTotal" style="font-size:20px; font-weight:800; color:var(--text); line-height:1;">—</div>
+                <div style="font-size:10px; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase;">Total tokens</div>
+            </div>
+        </div>
+        <div id="sourceLegend" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; font-size:11px; color:var(--text-muted); justify-content:center;"></div>
+        <div class="help" style="margin-top:8px; text-align:center;">Web = <span class="kbd">/api/chat</span> • Teams = <span class="kbd">/api/messages</span></div>
+    </div>
+</div>
+
+<!-- GRAPH ROW 2: TOP USERS + TEAMS -->
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+    <div class="card">
+        <div class="card-header">Top Web Users <small>By tokens in period • Top 5</small> <span class="badge badge-hr" style="margin-left:auto;">Web</span></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px; position:relative;">
+            <canvas id="topUsersChart" height="200" style="width:100%;"></canvas>
+            <div id="topUsersEmpty" class="empty-state" style="display:none; position:absolute; inset:12px; background:var(--bg-input); border-radius:10px;">
+                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>No web usage in period
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Top Teams Users <small>By Teams tokens • Top 5</small> <span class="badge badge-it" style="margin-left:auto;">Teams</span></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px; position:relative;">
+            <canvas id="topTeamsChart" height="200" style="width:100%;"></canvas>
+            <div id="topTeamsEmpty" class="empty-state" style="display:none; position:absolute; inset:12px; background:var(--bg-input); border-radius:10px;">
+                <div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>No Teams usage — chat in Teams
+            </div>
+        </div>
+        <div class="help" style="margin-top:8px; text-align:center;">Unlinked = needs <span class="kbd">aad_object_id</span> in Users</div>
+    </div>
+</div>
+
+<!-- TOKEN USAGE MINI STATS -->
 <div class="card" style="margin-bottom:14px;">
-    <div class="card-header">LLM Token Usage <small>Cost & utilization</small></div>
+    <div class="card-header">LLM Token Usage <small id="tokenPeriodLabel">In selected period</small></div>
     <div class="stat-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:10px;">
         <div class="stat-card c-orange" style="padding:14px;">
             <div class="label">Total Tokens</div>
             <div class="value" id="statTokens" style="font-size:22px;">—</div>
-            <div class="sub">All time</div>
+            <div class="sub" id="statTokensSub">All time</div>
         </div>
         <div class="stat-card c-blue" style="padding:14px;">
             <div class="label">Total Questions</div>
@@ -86,27 +134,24 @@
             <div class="sub">Assistant replies</div>
         </div>
         <div class="stat-card c-green" style="padding:14px;">
-            <div class="label">Active LLM Users</div>
+            <div class="label">Active Identities</div>
             <div class="value" id="statUsersWithUsage" style="font-size:22px;">—</div>
-            <div class="sub">With usage</div>
+            <div class="sub">Web users / Teams IDs</div>
         </div>
         <div class="stat-card c-purple" style="padding:14px;">
-            <div class="label">Top User</div>
-            <div class="value" id="statTopUser" style="font-size:13px; line-height:1.35; word-break:break-word; min-height:28px;">—</div>
-            <div class="sub">Highest consumption</div>
+            <div class="label">Avg Tokens / Q</div>
+            <div class="value" id="statAvgTokens" style="font-size:22px;">—</div>
+            <div class="sub">Cost per question</div>
         </div>
     </div>
-    <div style="margin-top:6px;">
-        <div class="card-header" style="border:none; padding-bottom:8px; margin-bottom:0;">Daily Token Usage — Total <small>Today at right • previous days to left</small></div>
-        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px;">
-            <canvas id="usageChart" height="140" style="width:100%;"></canvas>
-        </div>
-        <div class="help" style="margin-top:6px; text-align:center;">X-axis: daily dates (MM-DD) • Today is the rightmost point/bar</div>
+    <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px; display:none;" id="legacyMiniChartWrap">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px; font-weight:600;">Legacy trend (all-time) — for reference</div>
+        <canvas id="usageChart" height="110" style="width:100%;"></canvas>
     </div>
 </div>
 
 <div class="card" style="margin-bottom:14px;">
-    <div class="card-header">Token Usage by User <small>Per-user cost breakdown</small></div>
+    <div class="card-header">Token Usage by User <small>Web console — per-user cost breakdown</small></div>
     <div class="table-wrap">
         <table>
             <thead>
@@ -126,7 +171,7 @@
     </div>
 </div>
 
-<!-- TEAMS USAGE (NEW) -->
+<!-- TEAMS USAGE -->
 <div class="card" style="margin-bottom:14px;" id="teamsUsageCard">
     <div class="card-header">Teams Token Usage <small>Per-Teams-user via <span class="kbd">/api/messages</span> • segregated by AAD Object ID</small> <span id="teamsTotalBadge" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px; margin-left:auto; display:none;"></span></div>
     <div class="stat-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:10px;" id="teamsStatsGrid">
@@ -193,6 +238,7 @@
 <script src="/static/chart.js"></script>
 <script>
     function fmt(n) { if (n===null||n===undefined) return '0'; return Number(n).toLocaleString(); }
+    function fmtShort(n){ if(n>=1000000) return (n/1000000).toFixed(1)+'M'; if(n>=1000) return (n/1000).toFixed(1)+'k'; return fmt(n); }
 
     async function loadOverview() {
         const r = await authFetch('/api/admin/dashboard');
@@ -217,7 +263,6 @@
                     <ul>${rr.can.map(c=> `<li>${c}</li>`).join('')}</ul>
                 </div>`;
             }).join('');
-
             const p = d.permissions;
             const row = (label, key) => {
                 const v = (obj)=> obj[key]===true ? '<span class="perm-yes">✓ Yes</span>' : obj[key]===false ? '<span class="perm-no">—</span>' : `<span class="perm-partial">${obj[key]}</span>`;
@@ -228,9 +273,16 @@
         } catch(e) { /* silent */ }
     }
 
-    let _monthlyChart = null;
-    let _monthlyCache = null;
+    // --- state ---
+    let _periodDays = 14;
+    let _source = 'all';
+    let _charts = {};
 
+    function setSource(s){
+        _source = s;
+        document.querySelectorAll('[data-source]').forEach(b=> b.classList.toggle('active', b.dataset.source===s));
+        refreshCharts();
+    }
     function populateMonthSelect() {
         const sel = document.getElementById('monthSelect');
         if (!sel || sel.options.length) return;
@@ -246,259 +298,246 @@
         sel.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
     }
 
-    function drawUserChart(series) {
-        const canvas = document.getElementById('userChart');
-        const empty = document.getElementById('userChartEmpty');
-        const label = document.getElementById('totalTokensLabel');
-        if (!canvas) return;
-        const total = series.reduce((s,d)=> s + (d.total_tokens||0), 0);
-        if (label) label.textContent = total ? `Σ ${fmt(total)} tokens` : '';
-        if (!series || series.length === 0) {
-            if (empty) empty.style.display = 'grid';
-            if (_monthlyChart) { _monthlyChart.destroy(); _monthlyChart = null; }
-            return;
-        }
-        if (empty) empty.style.display = 'none';
-        const labels = series.map((s,i)=> {
+    function destroyChart(key){ if(_charts[key]){ _charts[key].destroy(); _charts[key]=null; } }
+
+    // --- 1) Daily stacked Web vs Teams ---
+    async function renderDailySplit(){
+        const canvas = document.getElementById('dailySplitChart');
+        const empty = document.getElementById('dailySplitEmpty');
+        const label = document.getElementById('dailyTotalLabel');
+        const sub = document.getElementById('dailySubtitle');
+        if(!canvas) return;
+        const days = _periodDays;
+        const monthSel = document.getElementById('monthSelect');
+        let webSeries=null, teamsSeries=null, allSeries=null;
+        try{
+            if(monthSel && days===30){
+                // month mode: fetch month series once (all) then split via overview? fallback to all
+                const r = await authFetch(`/api/admin/usage/timeseries?month=${monthSel.value}`);
+                const d = await r.json(); allSeries = d.series||[];
+                // derive web/teams split by fetching source-specific timeseries for the same month
+                const [rw, rt] = await Promise.all([authFetch(`/api/admin/usage/timeseries?month=${monthSel.value}&source=web`), authFetch(`/api/admin/usage/timeseries?month=${monthSel.value}&source=teams`)]);
+                const dw = await rw.json(); const dt = await rt.json();
+                webSeries = dw.series||[]; teamsSeries = dt.series||[];
+                if(sub) sub.textContent = `Month ${monthSel.value} • daily • Web vs Teams`;
+            } else {
+                const [rAll, rWeb, rTeams] = await Promise.all([
+                    authFetch(`/api/admin/usage/timeseries?days=${days}`),
+                    authFetch(`/api/admin/usage/timeseries?days=${days}&source=web`),
+                    authFetch(`/api/admin/usage/timeseries?days=${days}&source=teams`),
+                ]);
+                const dAll = await rAll.json(); const dWeb = await rWeb.json(); const dTeams = await rTeams.json();
+                allSeries = dAll.series||[]; webSeries = dWeb.series||[]; teamsSeries = dTeams.series||[];
+                if(sub) sub.textContent = `Last ${days} days • stacked Web vs Teams • today at right`;
+            }
+        }catch(e){ console.error(e); }
+        const totalAll = (allSeries||[]).reduce((s,d)=> s+(d.total_tokens||0),0);
+        if(label) label.textContent = totalAll ? `Σ ${fmt(totalAll)} tokens in period` : '';
+        const hasData = totalAll>0;
+        if(!hasData){ if(empty) empty.style.display='grid'; destroyChart('daily'); return; }
+        if(empty) empty.style.display='none';
+        const labels = (allSeries||[]).map((s,i)=> {
             const base = s.date ? s.date.slice(5) : '';
-            return i === series.length - 1 ? base + ' • Today' : base;
+            return i===(allSeries.length-1) ? base+' • Today' : base;
         });
-        const totalData = series.map(s=> s.total_tokens||0);
-        const promptData = series.map(s=> s.prompt_tokens||0);
-        const compData = series.map(s=> s.completion_tokens||0);
-        const isTodayIdx = (idx) => idx === series.length - 1;
+        const webData = (webSeries||[]).map(s=> s.total_tokens||0);
+        const teamsData = (teamsSeries||[]).map(s=> s.total_tokens||0);
         const ctx = canvas.getContext('2d');
-        if (_monthlyChart) _monthlyChart.destroy();
-        // Single bar per day for Total - today highlighted
-        const bgTotal = totalData.map((_,i)=> isTodayIdx(i) ? '#ff2d2d' : 'rgba(255,45,45,0.65)');
-        const borderTotal = totalData.map((_,i)=> isTodayIdx(i) ? '#ff5252' : 'rgba(255,45,45,0.9)');
-        _monthlyChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Total Tokens',
-                        data: totalData,
-                        backgroundColor: bgTotal,
-                        borderColor: borderTotal,
-                        borderWidth: 1,
-                        borderRadius: 4,
-                        borderSkipped: false,
-                        barPercentage: 0.75,
-                        categoryPercentage: 0.85,
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1e1e26',
-                        titleColor: '#f2f2f5',
-                        bodyColor: '#9b9ba5',
-                        borderColor: '#2a2a33',
-                        borderWidth: 1,
-                        padding: 10,
-                        displayColors: true,
+        destroyChart('daily');
+        const isToday = idx=> idx===(labels.length-1);
+        _charts.daily = new Chart(ctx, {
+            type:'bar',
+            data:{ labels, datasets:[
+                { label:'Web', data: webData, backgroundColor: webData.map((_,i)=> isToday(i)? '#38bdf8':'rgba(56,189,248,0.85)'), borderColor:'#38bdf8', borderWidth:1, borderRadius:4, stack:'stack' },
+                { label:'Teams', data: teamsData, backgroundColor: teamsData.map((_,i)=> isToday(i)? '#a78bfa':'rgba(167,139,250,0.85)'), borderColor:'#a78bfa', borderWidth:1, borderRadius:4, stack:'stack' },
+            ]},
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                interaction:{mode:'index', intersect:false},
+                plugins:{
+                    legend:{ display:true, position:'top', labels:{ color:'#9ca3af', font:{size:11}, boxWidth:12 }},
+                    tooltip:{
+                        backgroundColor:'#1e1e26', titleColor:'#f2f2f5', bodyColor:'#9b9ba5', borderColor:'#2a2a33', borderWidth:1, padding:10, displayColors:true,
+                        callbacks:{ footer: items=> { const t=items.reduce((s,i)=> s+i.parsed.y,0); return 'Total: '+fmt(t); }}
                     }
                 },
-                scales: {
-                    x: {
-                        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
-                        ticks: { color: '#70707a', font: { size: 10, family: 'Inter' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
-                        border: { display: false }
-                    },
-                    y: {
-                        grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
-                        ticks: { color: '#70707a', font: { size: 10, family: 'JetBrains Mono' }, callback: function(v){ return fmt(v); } },
-                        border: { display: false },
-                        beginAtZero: true
-                    }
+                scales:{
+                    x:{ stacked:true, grid:{color:'rgba(255,255,255,0.06)', drawBorder:false}, ticks:{color:'#70707a', font:{size:10}}, border:{display:false}},
+                    y:{ stacked:true, grid:{color:'rgba(255,255,255,0.06)', drawBorder:false}, ticks:{color:'#70707a', font:{size:10, family:'JetBrains Mono'}, callback:v=>fmtShort(v)}, border:{display:false}, beginAtZero:true}
                 }
             }
         });
-        _monthlyCache = series;
     }
 
-    async function loadUsage() {
-        const r = await authFetch('/api/admin/usage/per-user');
-        const d = await r.json();
-        document.getElementById('statTokens').textContent = fmt(d.total_tokens);
-        document.getElementById('statQuestions').textContent = fmt(d.total_questions);
-        document.getElementById('statUsersWithUsage').textContent = fmt(d.total_users_with_usage);
-        document.getElementById('statTopUser').innerHTML = d.top_user ? `${d.top_user.full_name || d.top_user.email}<br><span style="font-size:11px; color:var(--text-muted);">${fmt(d.top_user.total_tokens)} tokens</span>` : '—';
-        const tbody = document.getElementById('usageTable');
-        if (!d.users || d.users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No token usage recorded yet. Usage appears after users chat.</div></td></tr>';
-            return;
+    // --- 2) Source donut ---
+    async function renderSourceDonut(){
+        const canvas=document.getElementById('sourceDonut');
+        const empty=document.getElementById('sourceDonutEmpty');
+        const legend=document.getElementById('sourceLegend');
+        const center=document.getElementById('donutTotal');
+        if(!canvas) return;
+        try{
+            const r=await authFetch('/api/admin/usage/overview');
+            const d=await r.json();
+            const by=d.by_source||{};
+            const web = by.web ? by.web.total_tokens : 0;
+            const teams = by.teams ? by.teams.total_tokens : 0;
+            const unk = by.unknown ? by.unknown.total_tokens : 0;
+            const total = d.total ? d.total.total_tokens : (web+teams+unk);
+            if(center) center.textContent = fmt(total);
+            if(total===0){ if(empty) empty.style.display='grid'; destroyChart('donut'); if(legend) legend.innerHTML=''; return; }
+            if(empty) empty.style.display='none';
+            const ctx=canvas.getContext('2d');
+            destroyChart('donut');
+            _charts.donut=new Chart(ctx,{
+                type:'doughnut',
+                data:{ labels:['Web','Teams','Other'], datasets:[{ data:[web,teams,unk], backgroundColor:['#38bdf8','#a78bfa','#52525b'], borderColor:'#16161b', borderWidth:3, hoverOffset:6 }]},
+                options:{
+                    responsive:true, maintainAspectRatio:false, cutout:'68%',
+                    plugins:{
+                        legend:{display:false},
+                        tooltip:{ backgroundColor:'#1e1e26', titleColor:'#f2f2f5', bodyColor:'#9b9ba5', borderColor:'#2a2a33', borderWidth:1, padding:10, callbacks:{label: c=> ` ${c.label}: ${fmt(c.parsed)} (${ total? Math.round(c.parsed*100/total):0}%)`}}
+                    }
+                }
+            });
+            if(legend){
+                const pct = v=> total? Math.round(v*100/total):0;
+                legend.innerHTML = `
+                    <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;background:#38bdf8; border-radius:3px;"></span> Web ${fmt(web)} (${pct(web)}%)</span>
+                    <span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;background:#a78bfa; border-radius:3px;"></span> Teams ${fmt(teams)} (${pct(teams)}%)</span>
+                    ${unk? `<span style="display:inline-flex; gap:6px; align-items:center;"><span style="width:10px;height:10px;background:#52525b; border-radius:3px;"></span> Other ${fmt(unk)}</span>`:''}
+                `;
+            }
+        }catch(e){ console.error(e); }
+    }
+
+    // --- 3) Top users horizontal ---
+    function renderBarH(canvasId, emptyId, labels, values, color, emptyMsg){
+        const canvas=document.getElementById(canvasId);
+        const empty=document.getElementById(emptyId);
+        if(!canvas) return null;
+        if(!values || values.length===0 || Math.max(...values)===0){
+            if(empty) empty.style.display='grid';
+            destroyChart(canvasId);
+            return null;
         }
-        tbody.innerHTML = d.users.map(u => `
-            <tr>
-                <td>
-                    <div style="font-weight:700; color:var(--text); font-size:13px;">${u.full_name || 'N/A'}</div>
-                    <div style="font-size:11px; color:var(--text-muted);">${u.email}</div>
-                </td>
-                <td><span class="badge badge-${u.department}">${(u.department||'N/A').toUpperCase()}</span></td>
-                <td style="text-align:right; font-weight:600;">${fmt(u.question_count)}</td>
-                <td style="text-align:right; color:var(--text-secondary);">${fmt(u.prompt_tokens)}</td>
-                <td style="text-align:right; color:var(--text-secondary);">${fmt(u.completion_tokens)}</td>
-                <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(u.total_tokens)}</td>
-            </tr>
-        `).join('');
+        if(empty) empty.style.display='none';
+        const ctx=canvas.getContext('2d');
+        destroyChart(canvasId);
+        const bg = values.map(()=> color);
+        const chart=new Chart(ctx,{
+            type:'bar',
+            data:{ labels, datasets:[{ label:'Tokens', data: values, backgroundColor:bg, borderColor: color, borderWidth:1, borderRadius:6, barThickness:14 }]},
+            options:{
+                indexAxis:'y',
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e1e26', titleColor:'#f2f2f5', bodyColor:'#9b9ba5', borderColor:'#2a2a33', borderWidth:1, padding:10, callbacks:{label:c=> ' '+fmt(c.parsed.x)+' tokens'}}},
+                scales:{
+                    x:{ grid:{color:'rgba(255,255,255,0.06)', drawBorder:false}, ticks:{color:'#70707a', font:{size:10, family:'JetBrains Mono'}, callback:v=>fmtShort(v)}, border:{display:false}, beginAtZero:true},
+                    y:{ grid:{display:false}, ticks:{color:'#cbd5e1', font:{size:11, weight:600}}, border:{display:false}}
+                }
+            }
+        });
+        _charts[canvasId]=chart;
+        return chart;
     }
 
-    async function loadTeamsUsage() {
-        try {
-            const r = await authFetch('/api/admin/usage/teams');
-            if (r.status === 404) throw new Error('teams endpoint not found');
-            const d = await r.json();
-            const badge = document.getElementById('teamsTotalBadge');
-            if (badge) { badge.textContent = d.total_teams_identities ? `${fmt(d.total_teams_identities)} identities • ${fmt(d.total_tokens)} tokens` : ''; badge.style.display = d.total_teams_identities ? 'inline-flex' : 'none'; }
+    async function renderTopUsers(){
+        try{
+            const r=await authFetch('/api/admin/usage/per-user');
+            const d=await r.json();
+            const top=(d.users||[]).slice(0,5);
+            const labels=top.map(u=> (u.full_name||u.email||'Unknown').split(' ')[0].slice(0,14));
+            const vals=top.map(u=> u.total_tokens||0);
+            // also update mini stats
+            document.getElementById('statTokens').textContent = fmt(d.total_tokens);
+            document.getElementById('statQuestions').textContent = fmt(d.total_questions);
+            document.getElementById('statUsersWithUsage').textContent = fmt(d.total_users_with_usage);
+            document.getElementById('statTokensSub').textContent = `Across ${fmt(d.total_users_with_usage)} users`;
+            const avg = d.total_questions ? Math.round(d.total_tokens / d.total_questions) : 0;
+            document.getElementById('statAvgTokens').textContent = avg? fmt(avg): '—';
+            document.getElementById('tokenPeriodLabel').textContent = 'All time (per-user API)';
+            renderBarH('topUsersChart','topUsersEmpty', labels, vals, 'rgba(56,189,248,0.9)', 'No users');
+            // table
+            const tbody=document.getElementById('usageTable');
+            if(!d.users || d.users.length===0){
+                tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 12v5"/><path d="M12 7v9"/><path d="M17 14v3"/></svg></div>No token usage recorded yet.</div></td></tr>';
+                return;
+            }
+            tbody.innerHTML = d.users.map(u=> `
+                <tr>
+                    <td><div style="font-weight:700; color:var(--text); font-size:13px;">${u.full_name||'N/A'}</div><div style="font-size:11px; color:var(--text-muted);">${u.email}</div></td>
+                    <td><span class="badge badge-${u.department}">${(u.department||'N/A').toUpperCase()}</span></td>
+                    <td style="text-align:right; font-weight:600;">${fmt(u.question_count)}</td>
+                    <td style="text-align:right; color:var(--text-secondary);">${fmt(u.prompt_tokens)}</td>
+                    <td style="text-align:right; color:var(--text-secondary);">${fmt(u.completion_tokens)}</td>
+                    <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(u.total_tokens)}</td>
+                </tr>`).join('');
+        }catch(e){ console.error(e); }
+    }
+
+    async function renderTopTeams(){
+        try{
+            const r=await authFetch('/api/admin/usage/teams');
+            const d=await r.json();
+            const top=(d.teams||[]).slice(0,5);
+            const labels=top.map(t=> (t.teams_name|| t.teams_email|| t.teams_aad_id||'Unknown').slice(0,14));
+            const vals=top.map(t=> t.total_tokens||0);
+            renderBarH('topTeamsChart','topTeamsEmpty', labels, vals, 'rgba(167,139,250,0.9)', 'No teams');
+            // update teams mini stats
             document.getElementById('statTeamsRequests').textContent = fmt(d.total_requests);
             document.getElementById('statTeamsIds').textContent = fmt(d.total_teams_identities);
             document.getElementById('statTeamsTokens').textContent = fmt(d.total_tokens);
-            // source split via overview
-            const tbody = document.getElementById('teamsTable');
-            const note = document.getElementById('teamsLegacyNote');
-            if (d.legacy_unidentified && d.legacy_unidentified.requests) {
-                note.style.display='inline'; note.textContent = `⚠ ${fmt(d.legacy_unidentified.requests)} Teams requests had no AAD ID (legacy / before fix) — ${fmt(d.legacy_unidentified.total_tokens)} tokens.`;
-            }
-            if (!d.teams || d.teams.length === 0) {
-                const msg = d.total_requests === 0 ? 'No Teams usage yet — chat in Teams to see per-user tokens here.' : (d.legacy_unidentified ? 'No AAD-identified Teams users yet (see legacy note above).' : 'No Teams usage.');
-                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>${msg}</div></td></tr>`;
+            const badge=document.getElementById('teamsTotalBadge');
+            if(badge){ badge.textContent = d.total_teams_identities ? `${fmt(d.total_teams_identities)} • ${fmt(d.total_tokens)}` : ''; badge.style.display = d.total_teams_identities?'inline-flex':'none'; }
+            const tbody=document.getElementById('teamsTable');
+            const note=document.getElementById('teamsLegacyNote');
+            if(d.legacy_unidentified && d.legacy_unidentified.requests){ note.style.display='inline'; note.textContent=`⚠ ${fmt(d.legacy_unidentified.requests)} legacy without AAD — ${fmt(d.legacy_unidentified.total_tokens)}.`; }
+            if(!d.teams || d.teams.length===0){
+                const msg = d.total_requests===0 ? 'No Teams usage yet — chat in Teams.' : 'No AAD-identified Teams users.';
+                tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>${msg}</div></td></tr>`;
                 return;
             }
-            tbody.innerHTML = d.teams.map(t => `
+            tbody.innerHTML = d.teams.map(t=> `
                 <tr>
-                    <td>
-                        <div style="font-weight:700; color:var(--text); font-size:13px;">${t.teams_name || 'Unknown'}</div>
-                        <div style="font-size:11px; color:var(--text-muted); word-break:break-all;">${t.teams_email || ''}</div>
-                        <div style="font-size:10px; color:var(--text-faint); font-family:JetBrains Mono, monospace; word-break:break-all;">${t.teams_aad_id || ''}</div>
-                    </td>
-                    <td>
-                        ${t.is_registered ? `<div style="font-weight:600; font-size:12px;">${t.linked_name || t.linked_email}</div><div style="font-size:11px; color:var(--text-muted);">${t.linked_email || ''}</div>${t.linked_department ? `<span class="badge badge-${t.linked_department}" style="margin-top:4px;">${t.linked_department.toUpperCase()}</span>`:''}` : '<span style="color:var(--yellow); font-size:11px; font-weight:600;">Not linked — create user with this AAD ID</span>'}
-                    </td>
+                    <td><div style="font-weight:700; font-size:13px;">${t.teams_name||'Unknown'}</div><div style="font-size:11px; color:var(--text-muted); word-break:break-all;">${t.teams_email||''}</div><div style="font-size:10px; color:var(--text-faint); font-family:JetBrains Mono, monospace; word-break:break-all;">${t.teams_aad_id||''}</div></td>
+                    <td>${t.is_registered ? `<div style="font-weight:600; font-size:12px;">${t.linked_name||t.linked_email}</div><div style="font-size:11px; color:var(--text-muted);">${t.linked_email||''}</div>${t.linked_department?`<span class="badge badge-${t.linked_department}" style="margin-top:4px;">${t.linked_department.toUpperCase()}</span>`:''}` : '<span style="color:var(--yellow); font-size:11px; font-weight:600;">Not linked</span>'}</td>
                     <td style="text-align:right; font-weight:600;">${fmt(t.requests)}</td>
                     <td style="text-align:right; color:var(--text-secondary);">${fmt(t.prompt_tokens)}</td>
                     <td style="text-align:right; color:var(--text-secondary);">${fmt(t.completion_tokens)}</td>
                     <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(t.total_tokens)}</td>
                     <td>${t.is_registered ? '<span class="badge badge-ready">Linked</span>' : '<span class="badge badge-failed">Unlinked</span>'}</td>
-                </tr>
-            `).join('');
-        } catch(e) {
-            console.error('loadTeamsUsage', e);
-            const tbody = document.getElementById('teamsTable');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Teams usage unavailable — ${e.message}. Refresh after backend deploy.</div></td></tr>`;
+                </tr>`).join('');
+        }catch(e){
+            console.error(e);
+            const tb=document.getElementById('teamsTable');
+            if(tb) tb.innerHTML=`<tr><td colspan="7"><div class="empty-state">Teams unavailable — ${e.message}</div></td></tr>`;
         }
     }
 
-    async function loadSourceOverview() {
-        try {
-            const r = await authFetch('/api/admin/usage/overview');
-            if (!r.ok) return;
-            const d = await r.json();
-            const by = d.by_source || {};
-            const web = by.web || {requests:0, total_tokens:0};
-            const teams = by.teams || {requests:0, total_tokens:0};
-            const el = document.getElementById('statSourceSplit');
-            if (el) el.innerHTML = `<span style="color:var(--blue);">Web ${fmt(web.requests)}q / ${fmt(web.total_tokens)} tok</span><br><span style="color:var(--purple);">Teams ${fmt(teams.requests)}q / ${fmt(teams.total_tokens)} tok</span>`;
-        } catch(e) { /* silent */ }
+    async function loadSourceOverview(){
+        try{
+            const r=await authFetch('/api/admin/usage/overview'); if(!r.ok) return;
+            const d=await r.json(); const by=d.by_source||{}; const w=by.web||{total_tokens:0, requests:0}; const t=by.teams||{total_tokens:0, requests:0};
+            const el=document.getElementById('statSourceSplit');
+            if(el) el.innerHTML=`<span style="color:#38bdf8;">Web ${fmt(w.requests)}q / ${fmt(w.total_tokens)}</span><br><span style="color:#a78bfa;">Teams ${fmt(t.requests)}q / ${fmt(t.total_tokens)}</span>`;
+            const badge=document.getElementById('globalTotalBadge');
+            if(badge && d.total) { badge.textContent=`All time Σ ${fmt(d.total.total_tokens)} • ${fmt(d.total.requests)} qs`; badge.style.display='inline-flex'; }
+        }catch(e){}
     }
 
-    async function loadMonthlyChart() {
-        const monthSel = document.getElementById('monthSelect');
-        const periodSel = document.getElementById('periodSelect');
-        if (!monthSel) return;
-        populateMonthSelect();
-        const month = monthSel.value;
-        const period = periodSel ? periodSel.value : '7';
-        let url = '';
-        if (period === '30' && month) {
-            url = `/api/admin/usage/timeseries?month=${month}`;
-        } else {
-            const days = parseInt(period,10) || 7;
-            url = `/api/admin/usage/timeseries?days=${days}`;
-        }
-        try {
-            const r = await authFetch(url);
-            const d = await r.json();
-            if (d.series) {
-                _monthlyCache = d.series;
-                drawUserChart(d.series);
-            }
-        } catch(e) { console.error(e); }
+    async function refreshCharts(){
+        await Promise.all([renderDailySplit(), renderSourceDonut()]);
+    }
+    async function refreshAll(){
+        _periodDays = parseInt(document.getElementById('periodSelect')?.value||'14',10);
+        await Promise.all([loadOverview(), loadSourceOverview(), renderDailySplit(), renderSourceDonut(), renderTopUsers(), renderTopTeams()]);
     }
 
-    function drawChart(series) {
-        const canvas = document.getElementById('usageChart');
-        const ctx = canvas.getContext('2d');
-        const css = getComputedStyle(document.documentElement);
-        const accent = css.getPropertyValue('--accent').trim() || '#ff2d2d';
-        const muted = css.getPropertyValue('--text-muted').trim() || '#70707a';
-        const W = canvas.width = canvas.clientWidth * 2;
-        canvas.height = 140 * 2;
-        ctx.clearRect(0,0,W, W);
-        ctx.scale(2,2);
-        const w = canvas.clientWidth; const h = 140;
-        const data = series.map(p => p.total_tokens);
-        const max = Math.max(1, ...data);
-        const bw = w / data.length; const pad = 4;
-        const todayIdx = data.length - 1;
-        for (let i=0;i<data.length;i++) {
-            const bh = (data[i]/max)*(h-28);
-            const x = i*bw + pad; const y = h-16-bh;
-            const isToday = i === todayIdx;
-            const grd = ctx.createLinearGradient(0,y,0,h-16);
-            if (isToday) {
-                grd.addColorStop(0, accent); grd.addColorStop(1, '#ff7a7a');
-                ctx.shadowColor = 'rgba(255,45,45,0.35)'; ctx.shadowBlur = 8;
-            } else {
-                grd.addColorStop(0, accent+'CC'); grd.addColorStop(1, accent+'33');
-                ctx.shadowBlur = 0;
-            }
-            ctx.fillStyle = grd;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(x,y,bw-pad*2,bh,4); else { ctx.rect(x,y,bw-pad*2,bh); }
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            // Today marker dot on top of bar
-            if (isToday && data[i] > 0) {
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.arc(x + (bw-pad*2)/2, y - 4, 3, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = accent;
-                ctx.beginPath(); ctx.arc(x + (bw-pad*2)/2, y - 4, 1.8, 0, Math.PI*2); ctx.fill();
-            }
-        }
-        ctx.textAlign='center';
-        for (let i=0;i<data.length;i++) {
-            const isToday = i === todayIdx;
-            const isEven = i % 2 === 0;
-            if (!isEven && !isToday) continue;
-            ctx.fillStyle = isToday ? accent : muted;
-            ctx.font = isToday ? '700 10px Inter, sans-serif' : '10px Inter, sans-serif';
-            const label = series[i].date.slice(5) + (isToday ? ' • Today' : '');
-            ctx.fillText(label, i*bw + bw/2, h-2);
-        }
-        ctx.fillStyle = accent; ctx.font='bold 11px Inter, sans-serif';
-        const mi = data.indexOf(max);
-        if (max>0) ctx.fillText(fmt(max), mi*bw + bw/2, Math.max(10, h-16-(data[mi]/max)*(h-28)-6));
-    }
-
-    async function loadTimeseries() {
-        const r = await authFetch('/api/admin/usage/timeseries?days=14');
-        const d = await r.json();
-        if (d.series) drawChart(d.series);
-    }
-
-    loadOverview(); loadUsage(); loadTeamsUsage(); loadSourceOverview(); loadTimeseries(); loadRBAC();
-    // Monthly chart (top) - by month with weekly lines
+    // init
     populateMonthSelect();
-    loadMonthlyChart();
-    document.getElementById('monthSelect')?.addEventListener('change', loadMonthlyChart);
-    document.getElementById('periodSelect')?.addEventListener('change', loadMonthlyChart);
+    loadOverview(); loadSourceOverview(); renderDailySplit(); renderSourceDonut(); renderTopUsers(); renderTopTeams(); loadRBAC();
+    document.getElementById('periodSelect')?.addEventListener('change', e=>{ _periodDays=parseInt(e.target.value,10); if(_periodDays===30 && document.getElementById('monthSelect').value) { /* month mode handled in renderDailySplit */ } refreshCharts(); });
+    document.getElementById('monthSelect')?.addEventListener('change', refreshCharts);
 </script>
 {% endblock %}
