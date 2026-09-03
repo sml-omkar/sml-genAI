@@ -126,6 +126,52 @@
     </div>
 </div>
 
+<!-- TEAMS USAGE (NEW) -->
+<div class="card" style="margin-bottom:14px;" id="teamsUsageCard">
+    <div class="card-header">Teams Token Usage <small>Per-Teams-user via <span class="kbd">/api/messages</span> • segregated by AAD Object ID</small> <span id="teamsTotalBadge" class="mono" style="font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent-border); padding:4px 9px; border-radius:20px; margin-left:auto; display:none;"></span></div>
+    <div class="stat-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:10px;" id="teamsStatsGrid">
+        <div class="stat-card c-blue" style="padding:14px;">
+            <div class="label">Teams Requests</div>
+            <div class="value" id="statTeamsRequests" style="font-size:22px;">—</div>
+            <div class="sub">via Teams bot</div>
+        </div>
+        <div class="stat-card c-purple" style="padding:14px;">
+            <div class="label">Teams Identities</div>
+            <div class="value" id="statTeamsIds" style="font-size:22px;">—</div>
+            <div class="sub">Distinct AAD IDs</div>
+        </div>
+        <div class="stat-card c-orange" style="padding:14px;">
+            <div class="label">Teams Tokens</div>
+            <div class="value" id="statTeamsTokens" style="font-size:22px;">—</div>
+            <div class="sub">Prompt+completion</div>
+        </div>
+        <div class="stat-card c-green" style="padding:14px;">
+            <div class="label">Source Split</div>
+            <div class="value" id="statSourceSplit" style="font-size:12px; line-height:1.4; word-break:break-word; min-height:28px;">—</div>
+            <div class="sub">Web vs Teams</div>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Teams User</th>
+                    <th>Linked App User</th>
+                    <th style="text-align:right">Requests</th>
+                    <th style="text-align:right">Prompt</th>
+                    <th style="text-align:right">Completion</th>
+                    <th style="text-align:right">Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="teamsTable">
+                <tr><td colspan="7"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>Loading Teams usage…</div></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="help" style="margin-top:8px;">Same LLM tokens, but segregated by Teams <span class="kbd">aad_object_id</span>. <span id="teamsLegacyNote" style="display:none; color:var(--yellow);"></span> Tip: add <span class="kbd">aad_object_id</span> to Users via CSV bulk upload to link Teams senders to app users.</div>
+</div>
+
 <!-- RBAC OVERVIEW -->
 <div class="card">
     <div class="card-header">RBAC Overview <small>Roles, scopes & permissions — who can do what</small></div>
@@ -305,6 +351,64 @@
         `).join('');
     }
 
+    async function loadTeamsUsage() {
+        try {
+            const r = await authFetch('/api/admin/usage/teams');
+            if (r.status === 404) throw new Error('teams endpoint not found');
+            const d = await r.json();
+            const badge = document.getElementById('teamsTotalBadge');
+            if (badge) { badge.textContent = d.total_teams_identities ? `${fmt(d.total_teams_identities)} identities • ${fmt(d.total_tokens)} tokens` : ''; badge.style.display = d.total_teams_identities ? 'inline-flex' : 'none'; }
+            document.getElementById('statTeamsRequests').textContent = fmt(d.total_requests);
+            document.getElementById('statTeamsIds').textContent = fmt(d.total_teams_identities);
+            document.getElementById('statTeamsTokens').textContent = fmt(d.total_tokens);
+            // source split via overview
+            const tbody = document.getElementById('teamsTable');
+            const note = document.getElementById('teamsLegacyNote');
+            if (d.legacy_unidentified && d.legacy_unidentified.requests) {
+                note.style.display='inline'; note.textContent = `⚠ ${fmt(d.legacy_unidentified.requests)} Teams requests had no AAD ID (legacy / before fix) — ${fmt(d.legacy_unidentified.total_tokens)} tokens.`;
+            }
+            if (!d.teams || d.teams.length === 0) {
+                const msg = d.total_requests === 0 ? 'No Teams usage yet — chat in Teams to see per-user tokens here.' : (d.legacy_unidentified ? 'No AAD-identified Teams users yet (see legacy note above).' : 'No Teams usage.');
+                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="es-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>${msg}</div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = d.teams.map(t => `
+                <tr>
+                    <td>
+                        <div style="font-weight:700; color:var(--text); font-size:13px;">${t.teams_name || 'Unknown'}</div>
+                        <div style="font-size:11px; color:var(--text-muted); word-break:break-all;">${t.teams_email || ''}</div>
+                        <div style="font-size:10px; color:var(--text-faint); font-family:JetBrains Mono, monospace; word-break:break-all;">${t.teams_aad_id || ''}</div>
+                    </td>
+                    <td>
+                        ${t.is_registered ? `<div style="font-weight:600; font-size:12px;">${t.linked_name || t.linked_email}</div><div style="font-size:11px; color:var(--text-muted);">${t.linked_email || ''}</div>${t.linked_department ? `<span class="badge badge-${t.linked_department}" style="margin-top:4px;">${t.linked_department.toUpperCase()}</span>`:''}` : '<span style="color:var(--yellow); font-size:11px; font-weight:600;">Not linked — create user with this AAD ID</span>'}
+                    </td>
+                    <td style="text-align:right; font-weight:600;">${fmt(t.requests)}</td>
+                    <td style="text-align:right; color:var(--text-secondary);">${fmt(t.prompt_tokens)}</td>
+                    <td style="text-align:right; color:var(--text-secondary);">${fmt(t.completion_tokens)}</td>
+                    <td style="text-align:right; font-weight:800; color:var(--accent);">${fmt(t.total_tokens)}</td>
+                    <td>${t.is_registered ? '<span class="badge badge-ready">Linked</span>' : '<span class="badge badge-failed">Unlinked</span>'}</td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            console.error('loadTeamsUsage', e);
+            const tbody = document.getElementById('teamsTable');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Teams usage unavailable — ${e.message}. Refresh after backend deploy.</div></td></tr>`;
+        }
+    }
+
+    async function loadSourceOverview() {
+        try {
+            const r = await authFetch('/api/admin/usage/overview');
+            if (!r.ok) return;
+            const d = await r.json();
+            const by = d.by_source || {};
+            const web = by.web || {requests:0, total_tokens:0};
+            const teams = by.teams || {requests:0, total_tokens:0};
+            const el = document.getElementById('statSourceSplit');
+            if (el) el.innerHTML = `<span style="color:var(--blue);">Web ${fmt(web.requests)}q / ${fmt(web.total_tokens)} tok</span><br><span style="color:var(--purple);">Teams ${fmt(teams.requests)}q / ${fmt(teams.total_tokens)} tok</span>`;
+        } catch(e) { /* silent */ }
+    }
+
     async function loadMonthlyChart() {
         const monthSel = document.getElementById('monthSelect');
         const periodSel = document.getElementById('periodSelect');
@@ -390,7 +494,7 @@
         if (d.series) drawChart(d.series);
     }
 
-    loadOverview(); loadUsage(); loadTimeseries(); loadRBAC();
+    loadOverview(); loadUsage(); loadTeamsUsage(); loadSourceOverview(); loadTimeseries(); loadRBAC();
     // Monthly chart (top) - by month with weekly lines
     populateMonthSelect();
     loadMonthlyChart();
