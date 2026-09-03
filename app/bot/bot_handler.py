@@ -41,7 +41,7 @@ class PolicyBot(TeamsActivityHandler):
           2. Try every known location for email / UPN / name.
           3. Log the raw identifiers so EC2 logs can be debugged without
              needing a local Teams repro.
-        Returns (aad_id, email, name, channel_id, raw_debug_dict)
+         Returns (aad_id, email, name, channel_id, raw_debug_dict)
         """
         activity = turn_context.activity
         user = getattr(activity, "from_property", None)
@@ -54,23 +54,33 @@ class PolicyBot(TeamsActivityHandler):
             # additional_properties dict (some SDK versions stash it there)
             addl = getattr(user, "additional_properties", None)
             if not aad_id and isinstance(addl, dict):
-                aad_id = addl.get("aadObjectId") or addl.get("aad_object_id")
+                aad_id = addl.get("aadObjectId") or addl.get("aad_object_id") or addl.get("objectId")
             # properties dict
             props = getattr(user, "properties", None)
             if not aad_id and isinstance(props, dict):
-                aad_id = props.get("aadObjectId") or props.get("aad_object_id")
+                aad_id = props.get("aadObjectId") or props.get("aad_object_id") or props.get("objectId")
+            # Try direct dict access on the object itself (some SDKs store raw in __dict__)
+            if not aad_id and hasattr(user, "__dict__"):
+                d = user.__dict__
+                aad_id = d.get("aad_object_id") or d.get("aadObjectId") or d.get("objectId")
         # Fallback: raw activity JSON (activity.channel_data / value)
         if not aad_id:
             try:
                 raw = activity.as_dict() if hasattr(activity, "as_dict") else {}
                 # from.aadObjectId in raw JSON
                 from_raw = raw.get("from") or {}
-                aad_id = from_raw.get("aadObjectId") or from_raw.get("aad_object_id")
-                if not aad_id:
-                    # channelData.tenant.id sometimes, but not user AAD
-                    pass
+                aad_id = from_raw.get("aadObjectId") or from_raw.get("aad_object_id") or from_raw.get("objectId")
+                # Teams sometimes nests in channelData or tenant
+                if not aad_id and isinstance(raw.get("channelData"), dict):
+                    cd = raw["channelData"]
+                    # Some payloads put user AAD in channelData.tenant or extra
+                    aad_id = cd.get("aadObjectId") or cd.get("aad_object_id")
             except Exception:
                 pass
+
+        # Normalize: strip whitespace; keep original case for logging but clean for lookup
+        if aad_id and isinstance(aad_id, str):
+            aad_id = aad_id.strip()
 
         # --- Email / UPN ---
         email = ""
@@ -94,11 +104,36 @@ class PolicyBot(TeamsActivityHandler):
                 props = user.properties
                 if isinstance(props, dict):
                     email = props.get("email") or props.get("userPrincipalName") or ""
+            # Raw fallback
+            if not email:
+                try:
+                    raw = activity.as_dict() if hasattr(activity, "as_dict") else {}
+                    from_raw = raw.get("from") or {}
+                    email = from_raw.get("email") or from_raw.get("userPrincipalName") or ""
+                except Exception:
+                    pass
+            if email and isinstance(email, str):
+                email = email.strip()
 
         # --- Channel / conversation id for debugging ---
         channel_id = ""
         try:
-            channel_id = getattr(activity.channel_data, "tenant", {}).get("id") if isinstance(getattr(activity, "channel_data", None), dict) else ""
+            cd = getattr(activity, "channel_data", None)
+            if isinstance(cd, dict):
+                tenant = cd.get("tenant") or {}
+                if isinstance(tenant, dict):
+                    channel_id = tenant.get("id") or ""
+            elif hasattr(activity, "as_dict"):
+                raw = activity.as_dict() or {}
+                channel_id = (raw.get("channelData") or {}).get("tenant", {}).get("id", "")
+        except Exception:
+            pass
+
+        # Also capture raw from payload for deep debugging
+        raw_from_dump = {}
+        try:
+            raw = activity.as_dict() if hasattr(activity, "as_dict") else {}
+            raw_from_dump = raw.get("from") or {}
         except Exception:
             pass
 
@@ -106,9 +141,12 @@ class PolicyBot(TeamsActivityHandler):
             "from_id": getattr(user, "id", None) if user else None,
             "from_name": name,
             "aad_object_id": aad_id,
+            "aad_object_id_present": bool(aad_id),
             "email": email,
+            "email_present": bool(email),
             "channelId": getattr(activity, "channel_id", None),
             "conversation_id": getattr(getattr(activity, "conversation", None), "id", None) if getattr(activity, "conversation", None) else None,
+            "raw_from": raw_from_dump,
         }
         return aad_id, email, name, channel_id, raw_debug
 
@@ -132,32 +170,52 @@ class PolicyBot(TeamsActivityHandler):
             from sqlalchemy import select
 
             async with AsyncSessionLocal() as db:
+                # --- Diagnostic: log what aad_ids we have in DB (first 5) when lookup fails ---
+                # Normalize AAD for comparison: case-insensitive, trimmed
+                clean_aad = (aad_id or "").strip().lower() if aad_id else None
+
                 # Find user by AAD object ID FIRST (most reliable — Teams always sends this)
-                if aad_id:
-                    result = await db.execute(select(User).where(User.aad_object_id == aad_id))
+                if clean_aad:
+                    from sqlalchemy import func as _func
+                    # Case-insensitive exact match; handles GUID case variance
+                    result = await db.execute(select(User).where(_func.lower(User.aad_object_id) == clean_aad))
                     db_user = result.scalar_one_or_none()
                     if db_user:
-                        print(f"[BOT] Matched Teams user by AAD ID {aad_id} -> {db_user.email}")
+                        print(f"[BOT] Matched Teams user by AAD ID {aad_id} (clean={clean_aad}) -> {db_user.email}")
                     else:
-                        print(f"[BOT] No DB user found for AAD ID {aad_id}")
+                        print(f"[BOT] No DB user found for AAD ID '{aad_id}' (clean='{clean_aad}')")
+                        # Helpful diagnostic: show what AADs ARE in DB
+                        try:
+                            all_aads = (await db.execute(select(User.email, User.aad_object_id).where(User.aad_object_id.isnot(None)))).all()
+                            if all_aads:
+                                sample = ", ".join([f"{e}=>{a}" for e, a in all_aads[:5]])
+                                print(f"[BOT] DB has {len(all_aads)} users with AAD. Sample: {sample}")
+                            else:
+                                print("[BOT] DB has 0 users with aad_object_id — did you save the AAD in the user record?")
+                            # Also show raw dump to spot field name mismatch
+                            print(f"[BOT] Full sender dump for manual compare: aad='{aad_id}' email='{user_email}' name='{user_name}' from_id='{_dbg.get('from_id')}' raw_from={_dbg.get('raw_from')}")
+                        except Exception as e:
+                            print(f"[BOT] Diagnostic listing failed: {e}")
 
                 # Fallback: lookup by email / UPN if AAD did not match
                 if not db_user and user_email:
-                    result = await db.execute(select(User).where(User.email == user_email))
+                    clean_email = user_email.strip().lower()
+                    from sqlalchemy import func as _func2
+                    result = await db.execute(select(User).where(_func2.lower(User.email) == clean_email))
                     db_user = result.scalar_one_or_none()
                     if db_user:
-                        print(f"[BOT] Matched Teams user by email {user_email} -> AAD {db_user.aad_object_id}")
+                        print(f"[BOT] Matched Teams user by email {user_email} (clean={clean_email}) -> AAD {db_user.aad_object_id}")
                         # Opportunistically backfill AAD ID if DB row has none
                         if aad_id and not db_user.aad_object_id:
                             try:
-                                db_user.aad_object_id = aad_id
+                                db_user.aad_object_id = aad_id.strip()
                                 await db.commit()
                                 print(f"[BOT] Backfilled AAD ID {aad_id} for {user_email}")
                             except Exception as e:
                                 print(f"[BOT] Failed to backfill AAD ID: {e}")
                                 await db.rollback()
                     else:
-                        print(f"[BOT] No DB user found for email {user_email}")
+                        print(f"[BOT] No DB user found for email '{user_email}' (clean='{clean_email}')")
 
                 if db_user:
                     # Super admin: can query all departments
@@ -203,8 +261,25 @@ class PolicyBot(TeamsActivityHandler):
             await turn_context.send_activity("Please type a question to get started.")
             return
 
-        # --- Greeting / Help ---
+        # --- Debug: whoami (helps user copy the exact AAD to paste into Admin → Users) ---
         lower_text = text.lower().strip()
+        if lower_text in ["whoami", "who am i", "my id", "my aad", "debug", "show my id", "myid", "my aad id"]:
+            # Show what Teams actually sent so user can compare with DB value
+            matched = f"Matched DB user: {db_user.email} ({db_user.full_name})" if db_user else "Not matched — no user in DB has this AAD. Add it via Admin → Users → Edit."
+            info = (
+                f"**Your Teams identity (what the bot sees):**\n\n"
+                f"- **Name:** {teams_name or '(empty)'}\n"
+                f"- **Email/UPN:** {teams_email or '(empty — Teams does not send email without SSO, this is normal)'}\n"
+                f"- **AAD Object ID:** `{teams_aad_id or '(empty — bot did not receive an AAD ID!) Please check Teams manifest permissions.'}`\n"
+                f"- **Teams From ID:** `{_dbg.get('from_id') or ''}`\n\n"
+                f"{matched}\n\n"
+                f"**What to do:** Copy the **AAD Object ID** above and paste it into **Admin → Users → Edit → Teams AAD Object ID** for your user. "
+                f"Next message will be recognized. If AAD is empty, the Teams app manifest is missing the identity permission — contact admin."
+            )
+            await turn_context.send_activity(info)
+            # Also persist a card for copy-paste
+            print(f"[BOT] whoami requested — replied with identity dump for {teams_name}: aad={teams_aad_id} email={teams_email} matched={bool(db_user)}")
+            return
         if lower_text in ["hello", "hi", "hey", "help", "?", "start"]:
             card = build_welcome_card()
             attachment = create_attachment(card)
@@ -347,6 +422,16 @@ async def messages(request: Request):
 
     if not body:
         return JSONResponse(status_code=400, content={"error": "Empty request body"})
+
+    # --- RAW PAYLOAD LOG for debugging AAD mismatch ---
+    # This is the ONLY place we see the exact JSON Teams sent, before SDK deserialization.
+    # Helps diagnose why a user's AAD they pasted doesn't match what Teams sends.
+    try:
+        raw_json = json.loads(body)
+        raw_from = raw_json.get("from") or {}
+        print(f"[BOT] Raw Teams payload from={raw_from} channelData={raw_json.get('channelData')} text={raw_json.get('text','')[:80]!r}")
+    except Exception as e:
+        print(f"[BOT] Raw payload logging failed: {e}")
 
     try:
         activity = Activity().deserialize(json.loads(body))
