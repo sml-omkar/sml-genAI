@@ -8,6 +8,14 @@ Cross-encoder reranker for final chunk selection.
 from typing import List, Dict, Optional
 from functools import lru_cache
 import re
+import os
+
+# --- Silence ChromaDB telemetry (posthog capture signature mismatch) ---
+# Chroma 0.6.x tries to call posthog.capture(event, props) but posthog 3.x
+# expects capture(distinct_id, event). This spams "Failed to send telemetry"
+# on every get_or_create_collection / query. Disable before importing chromadb.
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+os.environ.setdefault("CHROMA_TELEMETRY", "False")
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
@@ -15,6 +23,25 @@ from chromadb.config import Settings as ChromaSettings
 from app.config import get_settings
 
 settings = get_settings()
+
+# Monkey-patch posthog.capture to no-op so Chroma's background telemetry thread
+# never throws "capture() takes 1 positional argument but 3 were given"
+try:
+    import posthog as _posthog
+
+    def _noop_capture(*args, **kwargs):
+        return None
+
+    _posthog.capture = _noop_capture
+    # Some Chroma versions import via chromadb.telemetry.posthog
+    try:
+        import chromadb.telemetry.posthog as _chroma_pg  # type: ignore
+
+        _chroma_pg.capture = _noop_capture
+    except Exception:
+        pass
+except Exception:
+    pass
 
 # Cross-encoder reranker (lazy loaded)
 _reranker = None
