@@ -76,6 +76,7 @@ async def init_db():
     from app.models.department import Department
     from app.models.feedback import Feedback
     from app.models.external_api import ExternalApi, ApiFolder
+    from app.models.broadcast import TeamsProactiveRef, Broadcast, BroadcastRecipient
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

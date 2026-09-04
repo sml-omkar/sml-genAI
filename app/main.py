@@ -223,9 +223,17 @@ from app.admin.external_api_routes import admin_router as ext_admin_router, chat
 app.include_router(ext_admin_router)
 app.include_router(ext_chat_router)
 
+# Teams Broadcast (proactive refs + admin broadcast)
+from app.admin.broadcast_routes import router as broadcast_router
+app.include_router(broadcast_router)
+
 @app.get("/admin/apis", response_class=HTMLResponse)
 async def admin_apis_page(request: Request):
     return templates.TemplateResponse("apis.html", {"request": request})
+
+@app.get("/admin/broadcast", response_class=HTMLResponse)
+async def admin_broadcast_page(request: Request):
+    return templates.TemplateResponse("broadcast.html", {"request": request})
 
 
 # =============================================================================

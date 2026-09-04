@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Broadcast — EthosAI{% endblock %}
+{% block header %}
+<div class="header-left">
+    <h2><span class="hdr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span> Teams Broadcast</h2>
+    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Send a proactive message to all Teams users who have chatted with the bot (via <span class="kbd">/api/messages</span>)</div>
+</div>
+{% endblock %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header">Compose Broadcast <small>Proactive via Bot Framework — requires prior 1:1 chat</small></div>
+    <div class="form-group">
+        <label>Message * <span style="font-weight:400; color:var(--text-muted);">(max 4000 chars, plain text or markdown)</span></label>
+        <textarea id="msg" rows="4" placeholder="e.g. Maintenance tonight 10pm — IT helpdesk will be unavailable. Reply here for urgent issues."></textarea>
+        <div style="display:flex; justify-content:space-between; margin-top:6px;"><span class="help" style="margin:0;"><span id="charCount">0</span>/4000</span><span class="help" style="margin:0;"><span id="reachCount">—</span> reachable recipients</span></div>
+    </div>
+    <div class="form-row">
+        <div class="form-group"><label>Target</label>
+            <select id="targetMode" onchange="onTargetChange()">
+                <option value="all">All active Teams conversations</option>
+                <option value="selected">Selected recipients only</option>
+            </select>
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end; gap:8px;">
+            <button class="btn" onclick="loadRecipients()">↻ Refresh recipients</button>
+            <button class="btn btn-primary" onclick="sendBroadcast(false)">Send Broadcast</button>
+            <button class="btn btn-ghost" onclick="sendBroadcast(true)">Dry Run</button>
+        </div>
+    </div>
+    <div id="recipientsBox" style="border:1px solid var(--border); border-radius:10px; background:var(--bg-input); padding:10px; max-height:260px; overflow:auto; display:none;"></div>
+    <div id="sendResult" style="display:none; margin-top:12px; padding:12px; border-radius:10px;"></div>
+    <div class="help">Bot can only message users who have **already chatted 1:1 or been added** — Teams stores <span class="kbd">ConversationReference</span> (`serviceUrl`/`conversation.id`) per user at that time. If a user never interacted, they won't appear until they do. Inactive refs (bot removed) are auto-skipped.</div>
+</div>
+
+<div class="card" style="margin-top:14px;">
+    <div class="card-header">History <small>Last 50 broadcasts</small> <button class="btn btn-sm" style="margin-left:auto;" onclick="loadHistory()">Refresh</button></div>
+    <div class="table-wrap" style="border:0; box-shadow:none; border-radius:0;">
+        <table>
+            <thead><tr><th>When</th><th>Message</th><th>Status</th><th>Sent / Failed / Total</th><th>Actions</th></tr></thead>
+            <tbody id="histTable"><tr><td colspan="5"><div class="empty-state"><div class="es-icon">◯</div>Loading…</div></td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="xp-modal" id="detailModal">
+    <div class="xp-modal-content" style="width:720px">
+        <div class="xp-modal-header"><h3 id="detailTitle">Broadcast</h3><button class="xp-button xp-button-sm" onclick="document.getElementById('detailModal').style.display='none'">✕</button></div>
+        <div class="xp-modal-body">
+            <div style="font-size:12px; white-space:pre-wrap; background:var(--bg-input); border:1px solid var(--border); border-radius:10px; padding:10px;" id="detailMsg"></div>
+            <div style="margin-top:12px; font-size:11px; color:var(--text-muted);"><span id="detailMeta"></span></div>
+            <div class="table-wrap" style="margin-top:10px; max-height:300px; overflow:auto;">
+                <table><thead><tr><th>User</th><th>Conversation</th><th>Status</th><th>Error</th></tr></thead><tbody id="detailRecipients"></tbody></table>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <button class="btn btn-sm" onclick="retryFailed()">Retry Failed</button>
+                <button class="btn btn-sm btn-ghost" onclick="document.getElementById('detailModal').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let recipients=[], selected=new Set();
+async function loadRecipients(){
+    const r=await authFetch('/api/admin/broadcast/recipients'); const j=await r.json();
+    recipients=j.recipients||[];
+    document.getElementById('reachCount').textContent = `${j.total} active`;
+    const box=document.getElementById('recipientsBox');
+    if(!recipients.length){ box.style.display='block'; box.innerHTML=`<div style="color:var(--text-muted);">No recipients yet — ask users to send a message in Teams 1:1 with the bot.</div>`; return; }
+    box.style.display='block';
+    box.innerHTML = recipients.map(rec=> `
+        <label style="display:flex; gap:8px; align-items:center; padding:6px; border-bottom:1px solid var(--border-light);">
+            <input type="checkbox" value="${rec.id}" ${selected.has(rec.id)?'checked':''} onchange="toggleSel('${rec.id}', this.checked)" style="width:auto;">
+            <span style="font-weight:600;">${rec.user_name||'Unknown'}</span>
+            <span style="font-size:11px; color:var(--text-muted);">${rec.user_email||''}</span>
+            <span class="kbd" style="margin-left:auto; font-size:10px;">${rec.teams_user_id.slice(0,18)}…</span>
+            <span style="font-size:10px; color:var(--text-faint);">${new Date(rec.last_seen).toLocaleDateString()}</span>
+        </label>`).join('');
+}
+function toggleSel(id, on){ if(on) selected.add(id); else selected.delete(id); }
+function onTargetChange(){
+    const mode=document.getElementById('targetMode').value;
+    document.getElementById('recipientsBox').style.display = mode==='selected' ? 'block' : 'none';
+    if(mode==='selected' && !recipients.length) loadRecipients();
+}
+document.getElementById('msg').addEventListener('input', e=> document.getElementById('charCount').textContent = e.target.value.length);
+async function sendBroadcast(dry){
+    const msg=document.getElementById('msg').value.trim();
+    const resEl=document.getElementById('sendResult');
+    if(!msg){ toast('Message required','err'); return; }
+    const mode=document.getElementById('targetMode').value;
+    const payload={message:msg, dry_run: !!dry};
+    if(mode==='selected'){
+        if(!selected.size){ toast('Select at least one recipient','err'); return; }
+        payload.ref_ids=[...selected];
+    }
+    resEl.style.display='block'; resEl.style.background='var(--bg-input)'; resEl.style.border='1px solid var(--border)'; resEl.textContent='Sending…';
+    const r=await authFetch('/api/admin/broadcast',{method:'POST', body: JSON.stringify(payload)});
+    const j=await r.json();
+    if(!r.ok){ resEl.style.background='var(--red-dim)'; resEl.style.border='1px solid var(--accent-border)'; resEl.textContent=j.detail||'Failed'; toast(j.detail||'Failed','err'); return; }
+    if(j.dry_run){
+        resEl.style.background='var(--yellow-dim)'; resEl.innerHTML=`Dry run: would send to <strong>${j.would_send_to}</strong> recipients. Preview: ${j.recipients_preview.map(r=> r.user_name).join(', ')}`;
+        toast(`Dry run: ${j.would_send_to} recipients`,'ok');
+    } else {
+        resEl.style.background='var(--green-dim)'; resEl.style.border='1px solid var(--green-border)'; resEl.innerHTML=`Queued <strong>${j.total_recipients}</strong> — <span class="kbd">${j.id}</span> <button class="btn btn-sm" onclick="openDetail('${j.id}')">View</button>`;
+        toast(`Broadcast queued to ${j.total_recipients}`,'ok'); loadHistory();
+    }
+}
+async function loadHistory(){
+    const r=await authFetch('/api/admin/broadcast/history'); const j=await r.json();
+    const tb=document.getElementById('histTable');
+    const list=j.broadcasts||[];
+    if(!list.length) tb.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="es-icon">◯</div>No broadcasts yet.</div></td></tr>`;
+    else tb.innerHTML=list.map(b=> `
+        <tr>
+            <td><div style="font-size:12px;">${new Date(b.created_at).toLocaleString()}</div><div style="font-size:10px; color:var(--text-muted);">${b.created_by.slice(0,8)}…</div></td>
+            <td style="max-width:320px;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;" title="${b.message.replace(/"/g,'&quot;')}">${b.message}</div></td>
+            <td><span class="badge ${b.status==='done'?'badge-ready': b.status==='running'?'badge-processing':'badge-upload'}">${b.status}</span></td>
+            <td style="font-size:12px;"><span style="color:var(--green);">${b.success_count}</span> / <span style="color:var(--red);">${b.failed_count}</span> / ${b.total_recipients}</td>
+            <td><button class="btn btn-sm" onclick="openDetail('${b.id}')">Detail</button></td>
+        </tr>`).join('');
+}
+let curBroadcast=null;
+async function openDetail(id){
+    const r=await authFetch(`/api/admin/broadcast/${id}`); const j=await r.json();
+    if(!r.ok){ toast(j.detail,'err'); return; }
+    curBroadcast=j;
+    document.getElementById('detailTitle').textContent=`Broadcast ${j.id.slice(0,8)}… — ${j.status}`;
+    document.getElementById('detailMsg').textContent=j.message;
+    document.getElementById('detailMeta').textContent=`Total ${j.total_recipients} • Sent ${j.success_count} • Failed ${j.failed_count} • ${new Date(j.created_at).toLocaleString()}`;
+    const tb=document.getElementById('detailRecipients');
+    tb.innerHTML=(j.recipients||[]).map(rec=> `<tr><td>${rec.user_name||rec.teams_user_id.slice(0,12)}…</td><td><span class="kbd" style="font-size:10px;">${(rec.conversation_id||'').slice(0,24)}…</span></td><td><span class="badge ${rec.status==='sent'?'badge-ready': rec.status==='failed'?'badge-failed':'badge-processing'}">${rec.status}</span></td><td style="font-size:11px; color:var(--red); max-width:200px; overflow:hidden; text-overflow:ellipsis;">${rec.error||''}</td></tr>`).join('');
+    document.getElementById('detailModal').style.display='flex';
+}
+async function retryFailed(){
+    if(!curBroadcast) return;
+    const r=await authFetch(`/api/admin/broadcast/${curBroadcast.id}/retry-failed`,{method:'POST'});
+    const j=await r.json(); if(!r.ok){ toast(j.detail,'err'); return; }
+    toast(j.detail,'ok'); setTimeout(()=> openDetail(curBroadcast.id), 1000);
+}
+loadRecipients(); loadHistory();
+</script>
+{% endblock %}

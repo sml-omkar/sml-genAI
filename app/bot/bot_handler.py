@@ -151,6 +151,14 @@ class PolicyBot(TeamsActivityHandler):
         return aad_id, email, name, channel_id, raw_debug
 
     async def on_message_activity(self, turn_context: TurnContext):
+        # --- Always save proactive ref so broadcast can reach this user later (fire-and-forget) ---
+        try:
+            import asyncio as _asyncio
+            from app.bot.proactive import save_proactive_ref
+            _asyncio.create_task(save_proactive_ref(turn_context))
+        except Exception as e:
+            print(f"[PROACTIVE] hook failed: {e}")
+
         # --- Extract user identity from Teams activity ---
         aad_id, user_email, user_name, channel_tenant_id, _dbg = self._extract_teams_identity(turn_context)
         print(f"[BOT] Teams sender identity: { _dbg }")
@@ -402,6 +410,13 @@ class PolicyBot(TeamsActivityHandler):
     async def on_teams_members_added(
         self, teams_members_added: list, team_info, turn_context: TurnContext,
     ):
+        # Save ref for newly added members too (so broadcast reaches them even before first message)
+        try:
+            import asyncio as _asyncio
+            from app.bot.proactive import save_proactive_ref
+            _asyncio.create_task(save_proactive_ref(turn_context))
+        except Exception:
+            pass
         for member in teams_members_added:
             if member.id != turn_context.activity.recipient.id:
                 card = build_welcome_card()
