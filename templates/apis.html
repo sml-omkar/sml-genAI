@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}APIs — EthosAI{% endblock %}
+{% block header %}
+<div class="header-left">
+    <h2><span class="hdr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span> Folder APIs</h2>
+    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">One API = one department + many folders • External apps call it with <span class="kbd">X-API-Key</span> and only get answers from those folders</div>
+</div>
+{% endblock %}
+{% block content %}
+
+<div class="card" style="padding:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <div style="flex:1; min-width:220px;">
+        <div style="font-weight:700; font-size:13px;">Create a folder-scoped API</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Pick a <span class="kbd">department</span> (single), give it a <span class="kbd">name</span>, attach 1+ folders from that dept. Key shown once.</div>
+    </div>
+    <button class="btn btn-primary" onclick="openCreate()">+ New API</button>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden; margin-top:14px;">
+    <div class="card-header" style="margin:0; padding:14px 16px;">
+        <span>Your APIs — <span id="apiCount" style="color:var(--text-muted); font-weight:500;">—</span></span>
+        <span style="font-size:11px; color:var(--text-muted);">Leaf: <span class="kbd">/api/external/{slug}/chat</span> via <span class="kbd">X-API-Key</span></span>
+    </div>
+    <div class="table-wrap" style="border:0; box-shadow:none; border-radius:0;">
+        <table>
+            <thead><tr><th>API</th><th>Dept</th><th>Folders</th><th>Key</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody id="apisTable"><tr><td colspan="6"><div class="empty-state"><div class="es-icon">◯</div>Loading…</div></td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create API Modal -->
+<div class="xp-modal" id="createModal">
+    <div class="xp-modal-content" style="width:620px">
+        <div class="xp-modal-header"><h3>New Folder API</h3><button class="xp-button xp-button-sm" onclick="document.getElementById('createModal').style.display='none'">✕</button></div>
+        <div class="xp-modal-body">
+            <form id="createForm" onsubmit="return doCreate(event)">
+                <div class="form-row">
+                    <div class="form-group" style="flex:1.2"><label>API Name *</label><input type="text" name="name" required placeholder="e.g. Leave Help API"></div>
+                    <div class="form-group"><label>Department *</label><select name="department" id="createDept" required></select></div>
+                </div>
+                <div class="form-group"><label>Description</label><input type="text" name="description" placeholder="What this API answers"></div>
+                <div class="form-group"><label>Attach Folders * <span style="font-weight:400; color:var(--text-muted);">(all must be in the same dept as the API)</span></label>
+                    <div id="createFolderList" style="border:1px solid var(--border); border-radius:10px; background:var(--bg-input); padding:10px; max-height:220px; overflow:auto;">Loading folders…</div>
+                    <div class="help" id="createFolderHelp">Select a department first.</div>
+                </div>
+                <div id="createErr" style="display:none; color:var(--red); font-size:12px; padding:10px; border-radius:10px; background:var(--red-dim); border:1px solid var(--accent-border);"></div>
+                <div class="xp-form-actions">
+                    <button type="submit" class="btn btn-primary">Create & Generate Key</button>
+                    <button type="button" class="btn" onclick="document.getElementById('createModal').style.display='none'">Cancel</button>
+                </div>
+            </form>
+            <div id="createResult" style="display:none; margin-top:12px; padding:12px; border-radius:10px; background:var(--green-dim); border:1px solid var(--green-border);">
+                <div style="font-weight:700; color:var(--green);">API Created — copy the key now!</div>
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:6px;">Endpoint: <span class="kbd" id="resEndpoint"></span></div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <input id="resKey" readonly style="flex:1; font-family:JetBrains Mono, monospace; font-size:12px;">
+                    <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('resKey').value); toast('Copied','ok')">Copy</button>
+                </div>
+                <div style="font-size:11px; color:var(--yellow); margin-top:6px;">Not stored plaintext — rotate if leaked. Curl: <span class="kbd" id="resCurl" style="word-break:break-all;"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail / Manage Modal -->
+<div class="xp-modal" id="detailModal">
+    <div class="xp-modal-content" style="width:640px">
+        <div class="xp-modal-header"><h3 id="detailTitle">API</h3><button class="xp-button xp-button-sm" onclick="document.getElementById('detailModal').style.display='none'">✕</button></div>
+        <div class="xp-modal-body">
+            <div style="font-size:11px; color:var(--text-muted);">Slug: <span class="kbd" id="detailSlug"></span> • Dept: <span class="kbd" id="detailDept"></span> • Endpoint: <span class="kbd" id="detailEndpoint"></span></div>
+            <div class="form-group" style="margin-top:12px;"><label>Attached Folders (all in API dept)</label><div id="detailFolders" style="border:1px solid var(--border); border-radius:10px; background:var(--bg-input); padding:10px; max-height:240px; overflow:auto;">—</div></div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <select id="attachFolderSelect" style="flex:1;"></select>
+                <button class="btn btn-sm btn-primary" onclick="doAttach()">Attach</button>
+            </div>
+            <div class="form-group" style="margin-top:12px;"><label>Active</label><label class="switch"><input type="checkbox" id="detailActive" onchange="doToggleActive()"><span class="switch-slider"></span></label> <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">Inactive APIs return 403</span></div>
+            <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+                <button class="btn btn-sm" onclick="doRotate()">Rotate Key</button>
+                <button class="btn btn-sm btn-danger" onclick="doDelete()">Delete API</button>
+                <button class="btn btn-sm" onclick="testChat()">Test Chat</button>
+            </div>
+            <div id="detailMsg" style="display:none; margin-top:10px; font-size:12px; padding:10px; border-radius:10px;"></div>
+            <div id="testBox" style="display:none; margin-top:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-input); padding:10px;">
+                <div style="display:flex; gap:8px;"><input id="testInput" placeholder="Ask about attached folders… e.g. what is leave policy?" style="flex:1;"><button class="btn btn-sm btn-primary" onclick="doTestChat()">Send</button></div>
+                <div id="testOut" style="margin-top:8px; font-size:12px; white-space:pre-wrap; max-height:180px; overflow:auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let apis=[], folders=[], departments=[];
+async function loadDepts(){
+    const r=await authFetch('/api/departments/all'); departments=await r.json();
+    const opts=departments.map(d=> `<option value="${d.slug}">${d.name}</option>`).join('');
+    document.getElementById('createDept').innerHTML=opts;
+    // refresh folder list when dept changes
+    document.getElementById('createDept').addEventListener('change', loadCreateFolders);
+    await loadCreateFolders();
+}
+async function loadFoldersAll(){
+    const r=await authFetch('/api/folders/'); const j=await r.json(); folders=j.folders||[];
+}
+async function loadCreateFolders(){
+    await loadFoldersAll();
+    const dept=document.getElementById('createDept').value;
+    const list=folders.filter(f=> f.department===dept);
+    const el=document.getElementById('createFolderList');
+    if(!list.length) el.innerHTML=`<div style="color:var(--text-muted); font-size:12px;">No folders in <span class="kbd">${dept}</span>. Create a folder first.</div>`;
+    else el.innerHTML=list.map(f=> `<label style="display:flex; gap:8px; align-items:center; padding:6px; border-bottom:1px solid var(--border-light);"><input type="checkbox" value="${f.id}" style="width:auto;"> <span style="font-weight:600;">${f.name}</span> <span class="badge badge-${f.department}" style="margin-left:auto;">${f.department}</span> <span style="font-size:11px; color:var(--text-muted);">${f.document_count} docs</span></label>`).join('');
+    document.getElementById('createFolderHelp').textContent = `${list.length} folders in ${dept} — select 1+`;
+}
+function openCreate(){ document.getElementById('createForm').reset(); document.getElementById('createErr').style.display='none'; document.getElementById('createResult').style.display='none'; loadCreateFolders().then(()=>{document.getElementById('createModal').style.display='flex';}); }
+async function doCreate(e){
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const name=fd.get('name').trim(); const dept=fd.get('department'); const desc=fd.get('description');
+    const checks=[...document.querySelectorAll('#createFolderList input:checked')].map(i=>i.value);
+    const err=document.getElementById('createErr'); err.style.display='none';
+    if(!checks.length){ err.textContent='Attach at least one folder.'; err.style.display='block'; return false; }
+    const r=await authFetch('/api/external-apis',{method:'POST', body: JSON.stringify({name, department:dept, description:desc, folder_ids:checks})});
+    const j=await r.json();
+    if(!r.ok){ err.textContent=j.detail||'Failed'; err.style.display='block'; return false; }
+    document.getElementById('resEndpoint').textContent=j.endpoint;
+    document.getElementById('resKey').value=j.api_key;
+    document.getElementById('resCurl').textContent=j.curl_example;
+    document.getElementById('createResult').style.display='block';
+    toast('API created — copy key now','ok'); loadApis();
+    return false;
+}
+async function loadApis(){
+    const r=await authFetch('/api/external-apis'); apis=await r.json();
+    document.getElementById('apiCount').textContent=`${apis.length} APIs`;
+    const tb=document.getElementById('apisTable');
+    if(!apis.length) tb.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="es-icon">◯</div>No APIs yet — create one to get a key. Dept admins only see their dept.</div></td></tr>`;
+    else tb.innerHTML=apis.map(a=> `
+        <tr>
+            <td><div style="font-weight:700;">${a.name}</div><div style="font-size:11px; color:var(--text-muted);"><span class="kbd">/${a.slug}</span> <span class="kbd">${a.endpoint||'/api/external/'+a.slug+'/chat'}</span></div><div style="font-size:11px; color:var(--text-muted);">${a.description||''}</div></td>
+            <td><span class="badge badge-${a.department}">${a.department.toUpperCase()}</span></td>
+            <td><span class="badge badge-ready">${a.folder_count} folders</span></td>
+            <td><span class="kbd">${a.api_key_prefix||'—'}</span></td>
+            <td>${a.is_active?'<span class="badge badge-ready">Active</span>':'<span class="badge badge-failed">Disabled</span>'}</td>
+            <td style="text-align:right; white-space:nowrap;"><button class="btn btn-sm" onclick="openDetail('${a.id}')">Manage</button> <button class="btn btn-sm" onclick="navigator.clipboard.writeText(location.origin+'/api/external/${a.slug}/chat'); toast('Endpoint copied','ok')">Copy URL</button></td>
+        </tr>`).join('');
+}
+let curApi=null;
+async function openDetail(id){
+    const r=await authFetch(`/api/external-apis/${id}`); const j=await r.json();
+    if(!r.ok){ toast(j.detail||'Failed','err'); return; }
+    curApi=j;
+    document.getElementById('detailTitle').textContent=j.name;
+    document.getElementById('detailSlug').textContent=j.slug;
+    document.getElementById('detailDept').textContent=j.department;
+    document.getElementById('detailEndpoint').textContent=j.endpoint;
+    document.getElementById('detailActive').checked=!!j.is_active;
+    const fldEl=document.getElementById('detailFolders');
+    if(!j.folders.length) fldEl.innerHTML=`<div style="color:var(--text-muted);">No folders attached.</div>`;
+    else fldEl.innerHTML=j.folders.map(f=> `<div style="display:flex; gap:8px; align-items:center; padding:6px; border-bottom:1px solid var(--border-light);"><span style="font-weight:600;">${f.name}</span> <span class="badge badge-${f.department}">${f.department}</span><span style="margin-left:auto; font-size:11px; color:var(--text-muted);">${f.document_count} docs</span> <button class="btn btn-sm btn-danger" onclick="doDetach('${f.id}')">Remove</button></div>`).join('');
+    // attach select: only folders in api dept
+    await loadFoldersAll();
+    const avail=folders.filter(f=> f.department===j.department && !j.folder_ids.includes(f.id));
+    const sel=document.getElementById('attachFolderSelect');
+    sel.innerHTML = avail.length ? avail.map(f=> `<option value="${f.id}">${f.name} (${f.document_count} docs)</option>`).join('') : `<option value="">No more folders in ${j.department}</option>`;
+    document.getElementById('detailMsg').style.display='none';
+    document.getElementById('testBox').style.display='none';
+    document.getElementById('detailModal').style.display='flex';
+}
+async function doAttach(){
+    const fid=document.getElementById('attachFolderSelect').value; if(!fid) return;
+    const r=await authFetch(`/api/external-apis/${curApi.id}/folders`,{method:'POST', body: JSON.stringify({folder_id:fid})});
+    const j=await r.json(); if(!r.ok){ toast(j.detail||'Attach failed','err'); return; }
+    toast('Folder attached','ok'); openDetail(curApi.id); loadApis();
+}
+async function doDetach(fid){
+    const r=await authFetch(`/api/external-apis/${curApi.id}/folders/${fid}`,{method:'DELETE'});
+    const j=await r.json(); if(!r.ok){ toast(j.detail||'Detach failed','err'); return; }
+    toast('Removed','ok'); openDetail(curApi.id); loadApis();
+}
+async function doToggleActive(){
+    const is_active=document.getElementById('detailActive').checked;
+    const r=await authFetch(`/api/external-apis/${curApi.id}`,{method:'PUT', body: JSON.stringify({is_active})});
+    if(!r.ok){ toast('Failed','err'); return; } toast(is_active?'Enabled':'Disabled','ok'); loadApis();
+}
+async function doRotate(){
+    if(!confirm('Rotate API key? Old key will stop working immediately.')) return;
+    const r=await authFetch(`/api/external-apis/${curApi.id}/rotate-key`,{method:'POST'});
+    const j=await r.json(); if(!r.ok){ toast(j.detail||'Failed','err'); return; }
+    const el=document.getElementById('detailMsg'); el.style.display='block'; el.style.background='var(--green-dim)'; el.style.border='1px solid var(--green-border)'; el.innerHTML=`New key: <span class="kbd" style="word-break:break-all;">${j.api_key}</span> <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${j.api_key}'); toast('Copied','ok')">Copy</button> — copy now, not stored plaintext.`;
+    toast('Key rotated — copy now','ok'); loadApis();
+}
+async function doDelete(){
+    if(!confirm(`Delete API "${curApi.name}"? This cannot be undone.`)) return;
+    const r=await authFetch(`/api/external-apis/${curApi.id}`,{method:'DELETE'});
+    if(!r.ok){ const j=await r.json(); toast(j.detail||'Delete failed','err'); return; }
+    document.getElementById('detailModal').style.display='none'; toast('Deleted','ok'); loadApis();
+}
+function testChat(){ document.getElementById('testBox').style.display='block'; }
+async function doTestChat(){
+    const q=document.getElementById('testInput').value.trim(); if(!q) return;
+    const out=document.getElementById('testOut'); out.textContent='Thinking…';
+    // For Test, we need the plain key — user must have copied it on create/rotate. We ask for it now if not present
+    let key = prompt('Paste the API Key for '+curApi.slug+' (shown once on create/rotate):');
+    if(!key) { out.textContent='Cancelled — need API key to test.'; return; }
+    const r=await fetch(`/api/external/${curApi.slug}/chat`,{method:'POST', headers:{'Content-Type':'application/json','X-API-Key':key}, body: JSON.stringify({message:q})});
+    const j=await r.json();
+    if(!r.ok) out.textContent=`Error ${r.status}: ${j.detail||JSON.stringify(j)}`;
+    else out.textContent=`Answer:\n${j.answer}\n\nSources: ${j.sources.map(s=>s.document_name).join(', ')}\nTokens: ${JSON.stringify(j.usage)}`;
+}
+loadDepts(); loadApis();
+</script>
+{% endblock %}

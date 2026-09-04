@@ -574,6 +574,7 @@ async def _answer_from_history(
 async def query_rag(
     question: str,
     department: Optional[str] = None,
+    folder_ids: Optional[List[str]] = None,
     chat_history: Optional[List[Dict]] = None,
     n_results: int = None,
     min_relevance: float = 0.50,
@@ -584,11 +585,13 @@ async def query_rag(
     Agentic RAG pipeline. Public entry point; tracks token usage across the run.
     When ``include_usage`` is True, the returned dict includes a "usage" key with
     prompt/completion/total tokens consumed for this request.
+    folder_ids, when provided, scopes retrieval to explicit folders (external APIs).
     """
     _reset_usage()
     result = await _query_rag_impl(
         question=question,
         department=department,
+        folder_ids=folder_ids,
         chat_history=chat_history,
         n_results=n_results,
         min_relevance=min_relevance,
@@ -602,6 +605,7 @@ async def query_rag(
 async def _query_rag_impl(
     question: str,
     department: Optional[str] = None,
+    folder_ids: Optional[List[str]] = None,
     chat_history: Optional[List[Dict]] = None,
     n_results: int = None,
     min_relevance: float = 0.50,
@@ -707,6 +711,7 @@ async def _query_rag_impl(
         chunks = await search_similar(
             query=query,
             department=department,
+            folder_ids=folder_ids,
             n_results=15,
         )
         

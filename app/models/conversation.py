@@ -34,6 +34,8 @@ class Conversation(Base):
     teams_email = Column(String(255), nullable=True)
     teams_name = Column(String(255), nullable=True)
     teams_channel_id = Column(String(500), nullable=True)
+    # External folder-scoped API that served this conversation (null for web/teams)
+    external_api_id = Column(UUID(as_uuid=True), ForeignKey("external_apis.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -43,6 +45,7 @@ class Conversation(Base):
         Index("idx_conversations_user_updated", "user_id", "updated_at"),
         Index("idx_conversations_teams_aad", "teams_aad_id"),
         Index("idx_conversations_source", "source"),
+        Index("idx_conversations_external_api", "external_api_id"),
     )
 
 

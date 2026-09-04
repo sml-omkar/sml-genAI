@@ -75,6 +75,7 @@ async def init_db():
     from app.models.group import Group, UserGroup, GroupFolder
     from app.models.department import Department
     from app.models.feedback import Feedback
+    from app.models.external_api import ExternalApi, ApiFolder
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -120,8 +121,11 @@ async def init_db():
         try:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_teams_aad ON conversations(teams_aad_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_external_api ON conversations(external_api_id)"))
         except Exception:
             pass
+        # Migration: external folder-scoped APIs (conversations.external_api_id already handled above via create_all)
+        await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_api_id UUID"))
 
     # Seed default departments if none exist
     from sqlalchemy import select, func

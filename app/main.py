@@ -218,6 +218,15 @@ app.include_router(rag_debug_router, prefix="/api/rag", tags=["RAG Debug"])
 from app.bot.bot_handler import router as bot_router
 app.include_router(bot_router, tags=["Bot"])
 
+# Folder-scoped External APIs (super_admin creates API in single dept, attaches folders in that dept)
+from app.admin.external_api_routes import admin_router as ext_admin_router, chat_router as ext_chat_router
+app.include_router(ext_admin_router)
+app.include_router(ext_chat_router)
+
+@app.get("/admin/apis", response_class=HTMLResponse)
+async def admin_apis_page(request: Request):
+    return templates.TemplateResponse("apis.html", {"request": request})
+
 
 # =============================================================================
 # PUBLIC ROUTES — EthosAI Chatbot (no auth required)

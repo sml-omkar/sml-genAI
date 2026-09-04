@@ -32,6 +32,7 @@ class MemoryService:
         teams_email: Optional[str] = None,
         teams_name: Optional[str] = None,
         teams_channel_id: Optional[str] = None,
+        external_api_id: Optional[str] = None,
     ) -> Conversation:
         """Get existing conversation or create a new one."""
         async with AsyncSessionLocal() as db:
@@ -46,7 +47,7 @@ class MemoryService:
                         await self._delete_conversation(db, conv)
                         await db.commit()
                         return await self._create_conversation(
-                            db, user_id, source, teams_aad_id, teams_email, teams_name, teams_channel_id
+                            db, user_id, source, teams_aad_id, teams_email, teams_name, teams_channel_id, external_api_id
                         )
                     # Backfill Teams identity if conversation was created before these columns existed
                     updated = False
@@ -65,12 +66,18 @@ class MemoryService:
                     if teams_channel_id and not conv.teams_channel_id:
                         conv.teams_channel_id = teams_channel_id
                         updated = True
+                    if external_api_id and not conv.external_api_id:
+                        try:
+                            conv.external_api_id = UUID(external_api_id)
+                            updated = True
+                        except Exception:
+                            pass
                     if updated:
                         await db.commit()
                         await db.refresh(conv)
                     return conv
 
-            return await self._create_conversation(db, user_id, source, teams_aad_id, teams_email, teams_name, teams_channel_id)
+            return await self._create_conversation(db, user_id, source, teams_aad_id, teams_email, teams_name, teams_channel_id, external_api_id)
 
     async def _create_conversation(
         self,
@@ -81,6 +88,7 @@ class MemoryService:
         teams_email: Optional[str] = None,
         teams_name: Optional[str] = None,
         teams_channel_id: Optional[str] = None,
+        external_api_id: Optional[str] = None,
     ) -> Conversation:
         conv = Conversation(
             user_id=UUID(user_id) if user_id else None,
@@ -90,6 +98,7 @@ class MemoryService:
             teams_email=teams_email,
             teams_name=teams_name,
             teams_channel_id=teams_channel_id,
+            external_api_id=UUID(external_api_id) if external_api_id else None,
         )
         db.add(conv)
         await db.commit()

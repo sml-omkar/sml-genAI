@@ -250,11 +250,13 @@ def _keyword_boost(query: str, doc_text: str, base_score: float) -> float:
 async def search_similar(
     query: str,
     department: Optional[str] = None,
+    folder_ids: Optional[List[str]] = None,
     n_results: int = None,
 ) -> List[Dict]:
     """
     Hybrid search: vector similarity + keyword matching.
     Retrieves more candidates than needed, then re-ranks with keyword boost.
+    Supports single-dept + multi-folder scoping for external APIs.
     """
     from app.rag.embeddings import embed_query
 
@@ -270,8 +272,17 @@ async def search_similar(
 
     query_embedding = embed_query(query)
 
+    # Build Chroma where filter: folder_ids takes precedence over department
+    # (external APIs scope to explicit folders; Teams/web use department)
     where_filter = None
-    if department:
+    if folder_ids:
+        # Chroma $in requires list of strings
+        clean_ids = [str(fid) for fid in folder_ids if fid]
+        if len(clean_ids) == 1:
+            where_filter = {"folder_id": {"$eq": clean_ids[0]}}
+        elif clean_ids:
+            where_filter = {"folder_id": {"$in": clean_ids}}
+    elif department:
         where_filter = {"department": {"$eq": department.lower()}}
 
     query_params = {
