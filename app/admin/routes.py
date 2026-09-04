@@ -1,7 +1,7 @@
 """
 Admin Routes
 Dashboard stats and user management endpoints.
-EthosAI admin (super_admin) sees everything.
+NXSS AI admin (super_admin) sees everything.
 Dept admins see only their department.
 """
 
@@ -212,7 +212,7 @@ async def download_bulk_template(
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode()),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=ethosai_users_template.csv"},
+        headers={"Content-Disposition": "attachment; filename=nxssai_users_template.csv"},
     )
 
 

@@ -1,6 +1,6 @@
 """
 Admin Usage Analytics Routes
-Token-usage tracking showcase for the EthosAI admin portal.
+Token-usage tracking showcase for the NXSS AI admin portal.
 
 Super admins see usage across all users; dept admins see only their department.
 All queries aggregate over the LLM assistant-messages that carry token counts.

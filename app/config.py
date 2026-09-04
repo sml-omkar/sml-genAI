@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     """
 
     # --- Application ---
-    APP_NAME: str = "AI-Bot"
+    APP_NAME: str = "NXSS AI"
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
     DEBUG: bool = False

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Users — EthosAI{% endblock %}
+{% block title %}Users — NXSS AI{% endblock %}
 {% block header %}
 <div class="header-left">
     <h2><span class="hdr-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span> Users &amp; Access Control</h2>
@@ -387,7 +387,7 @@
         const r = await authFetch('/api/admin/users/bulk-template');
         const blob = await r.blob();
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href=url; a.download='ethosai_users_template.csv'; a.click();
+        const a = document.createElement('a'); a.href=url; a.download='nxssai_users_template.csv'; a.click();
         URL.revokeObjectURL(url); toast('Template downloaded','ok');
     }
     function handleDrop(e){ e.preventDefault(); e.currentTarget.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f) setBulkFile(f); }

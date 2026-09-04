@@ -142,7 +142,7 @@ def _llm_chat(messages: List[Dict], temperature: float = 0.3, max_tokens: int = 
 # Step 1: Intent Router
 # ============================================================================
 
-ROUTER_SYSTEM = """You are an intent classifier for a company AI assistant called EthosAI.
+ROUTER_SYSTEM = """You are an intent classifier for a company AI assistant called NXSS AI.
 
 Classify the user's question into ONE of these categories:
 - GREETING: Hello, hi, thanks, bye, good morning/afternoon/evening
@@ -160,7 +160,7 @@ Respond with ONLY the category name, nothing else."""
 
 GREETING_RESPONSES = {
     "hi": "Hi there! How can I help you today?",
-    "hello": "Hello! I'm EthosAI, your company policy assistant. What can I help you with?",
+    "hello": "Hello! I'm NXSS AI, your company policy assistant. What can I help you with?",
     "hey": "Hey! What can I help you with?",
     "good morning": "Good morning! How can I assist you today?",
     "good afternoon": "Good afternoon! What can I help you with?",
@@ -169,7 +169,7 @@ GREETING_RESPONSES = {
     "thanks": "You're welcome! Let me know if you need anything else.",
     "thank you": "You're welcome! Happy to help anytime.",
     "bye": "Goodbye! Have a great day.",
-    "who are you": "I'm EthosAI -- your company policy assistant. I can answer questions about company policies, IT guidelines, HR procedures, and more.",
+    "who are you": "I'm NXSS AI -- your company policy assistant. I can answer questions about company policies, IT guidelines, HR procedures, and more.",
     "what can you do": "I can help you with:\n- Company policies and procedures\n- IT guidelines and infrastructure info\n- HR policies (leave, benefits, etc.)\n- Any document-based questions\n\nJust type your question!",
 }
 
@@ -356,7 +356,7 @@ async def evaluate_chunks(
 # Step 4: Answer Generator
 # ============================================================================
 
-GENERATOR_SYSTEM = """You are EthosAI, an employee-help assistant for SML. You answer questions using ONLY the company-document context given below — nothing else. Everything you say must be grounded in that context.
+GENERATOR_SYSTEM = """You are NXSS AI, an employee-help assistant for SML. You answer questions using ONLY the company-document context given below — nothing else. Everything you say must be grounded in that context.
 
 DECIDE, then ANSWER:
 Step A — Are the provided facts enough to answer?
@@ -441,7 +441,7 @@ def format_history(history: List[Dict]) -> str:
         return ""
     lines = ["Previous conversation:"]
     for msg in history[-10:]:
-        role = "Employee" if msg["role"] == "user" else "EthosAI"
+        role = "Employee" if msg["role"] == "user" else "NXSS AI"
         content = msg["content"][:200]
         lines.append(f"{role}: {content}")
     return "\n".join(lines)
@@ -531,7 +531,7 @@ Follow the instructions in your system prompt. Decide the appropriate response (
 # History-based answering (follow-ups like "in short", "what did I ask?")
 # ============================================================================
 
-HISTORY_ANSWER_SYSTEM = """You are EthosAI, a friendly company assistant.
+HISTORY_ANSWER_SYSTEM = """You are NXSS AI, a friendly company assistant.
 
 The employee is referring to your EARLIER REPLY in this conversation — for example asking you to
 summarize it, shorten it, repeat it, explain a part of it, or tell them what they asked.
@@ -554,7 +554,7 @@ async def _answer_from_history(
     """
     recent = chat_history[-6:]
     convo = "\n".join(
-        f"{'Employee' if m['role'] == 'user' else 'EthosAI'}: {m['content'][:1200]}"
+        f"{'Employee' if m['role'] == 'user' else 'NXSS AI'}: {m['content'][:1200]}"
         for m in recent
     )
     messages = [
@@ -654,7 +654,7 @@ async def _query_rag_impl(
     # ---- Handle Greeting ----
     if intent == "GREETING":
         q_lower = question.strip().lower().rstrip("!?.")
-        answer = "Hey! I'm EthosAI. Ask me anything about company policies, IT guidelines, HR procedures, or any other company documents."
+        answer = "Hey! I'm NXSS AI. Ask me anything about company policies, IT guidelines, HR procedures, or any other company documents."
         for key, response in GREETING_RESPONSES.items():
             if key in q_lower:
                 answer = response
@@ -667,14 +667,14 @@ async def _query_rag_impl(
         return result
     
     # ---- Handle Conversational (no docs needed) ----
-    # IMPORTANT: EthosAI must only answer from company documents. For general
+    # IMPORTANT: NXSS AI must only answer from company documents. For general
     # chit-chat we stay friendly but NEVER provide factual/world-knowledge
     # answers (that leaks information outside our documents). We either keep it
     # to neutral pleasantries or politely redirect to company topics.
     if intent == "CONVERSATIONAL":
         messages = [
             {"role": "system", "content": (
-                "You are EthosAI, SML's company assistant. You ONLY answer from company "
+                "You are NXSS AI, SML's company assistant. You ONLY answer from company "
                 "documents, so you must NEVER provide general knowledge or factual answers about "
                 "the outside world (news, sports, geography, celebrities, etc.).\n"
                 "When someone says a simple greeting or pleasantry (hi, thanks, how are you), "

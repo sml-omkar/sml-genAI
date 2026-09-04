@@ -152,15 +152,15 @@ async def delete_folder(
     stored_paths = [row[2] for row in docs]
 
     if doc_ids:
-        # Delete chunks + EthosAI memory notes from ChromaDB (both share document_id)
+        # Delete chunks + NXSS AI memory notes from ChromaDB (both share document_id)
         try:
             from app.rag.vectorstore import delete_documents_from_vectordb
             await delete_documents_from_vectordb(doc_ids, doc_names)
         except Exception as e:
             print(f"[WARNING] ChromaDB cleanup failed: {e}")
 
-        # Delete EthosAI global policy memories (DocumentMemory) for all docs in folder
-        # This is the EthosAI brain, not per-user conversation memory
+        # Delete NXSS AI global policy memories (DocumentMemory) for all docs in folder
+        # This is the NXSS AI brain, not per-user conversation memory
         try:
             from app.models.document_memory import DocumentMemory
             from sqlalchemy import delete as sa_delete
@@ -187,4 +187,4 @@ async def delete_folder(
                 print(f"[WARNING] Failed to remove file {p}: {e}")
 
     await db.delete(folder)
-    return {"message": f"Folder '{folder.name}' and all its documents deleted. Chunks, embeddings and EthosAI memories removed."}
+    return {"message": f"Folder '{folder.name}' and all its documents deleted. Chunks, embeddings and NXSS AI memories removed."}

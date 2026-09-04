@@ -33,7 +33,7 @@ DEFAULT_ADMIN_NAME = "Super Admin"
 async def init_database():
     """Create all tables and seed default admin user."""
     print("=" * 60)
-    print("AI-Bot Database Initialization")
+    print("NXSS AI Database Initialization")
     print("=" * 60)
 
     # Step 1: Create tables (uses app init_db so ALL models are registered,

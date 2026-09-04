@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EthosAI — SML Policy Assistant</title>
+    <title>NXSS AI — SML Policy Assistant</title>
     <link rel="icon" type="image/png" href="/static/sml.png">
     <link rel="apple-touch-icon" href="/static/sml.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -166,7 +166,7 @@
         <div class="cy-header-left">
             <div class="cy-logo"><img src="/static/sml.png" alt="SML Logo"></div>
             <div>
-                <h1>EthosAI</h1>
+                <h1>NXSS AI</h1>
                 <small>SML Policy Assistant</small>
             </div>
         </div>
@@ -185,9 +185,9 @@
     <div class="cy-chat-container">
         <div class="cy-messages" id="chatMessages">
             <div class="cy-msg bot">
-                <div class="cy-avatar"><img src="/static/sml.png" alt="EthosAI"></div>
+                <div class="cy-avatar"><img src="/static/sml.png" alt="NXSS AI"></div>
                 <div>
-                    <div class="cy-bubble">Hello! I'm EthosAI, your company policy assistant. Ask me anything about company policies, IT guidelines, HR procedures, or infrastructure docs.
+                    <div class="cy-bubble">Hello! I'm NXSS AI, your company policy assistant. Ask me anything about company policies, IT guidelines, HR procedures, or infrastructure docs.
 
 To get started, just type your question below. You'll be asked to log in when you send your first message.</div>
                 </div>
@@ -208,7 +208,7 @@ To get started, just type your question below. You'll be asked to log in when yo
     <div class="cy-modal-overlay" id="loginModal">
         <div class="cy-modal">
             <h2>Sign In</h2>
-            <p class="subtitle">Login to chat with EthosAI</p>
+            <p class="subtitle">Login to chat with NXSS AI</p>
             <form onsubmit="return handleLogin(event)">
                 <div class="form-group">
                     <label>Email</label>
@@ -230,18 +230,18 @@ To get started, just type your question below. You'll be asked to log in when yo
         let conversationId = null;
         let pendingMessage = null;
 
-        function getUser() { try { return JSON.parse(localStorage.getItem('ethos_user')); } catch { return null; } }
-        function getToken() { return localStorage.getItem('ethos_token'); }
+        function getUser() { try { return JSON.parse(localStorage.getItem('nxss_user')); } catch { return null; } }
+        function getToken() { return localStorage.getItem('nxss_token'); }
 
         function setUser(token, user) {
-            localStorage.setItem('ethos_token', token);
-            localStorage.setItem('ethos_user', JSON.stringify(user));
+            localStorage.setItem('nxss_token', token);
+            localStorage.setItem('nxss_user', JSON.stringify(user));
             currentUser = user; updateHeader();
         }
 
         function logoutUser() {
-            localStorage.removeItem('ethos_token');
-            localStorage.removeItem('ethos_user');
+            localStorage.removeItem('nxss_token');
+            localStorage.removeItem('nxss_user');
             currentUser = null; conversationId = null;
             updateHeader();
             addBotMessage("You've been signed out. Ask me anything and you'll be prompted to log in again.");
@@ -319,7 +319,7 @@ To get started, just type your question below. You'll be asked to log in when yo
         function addBotMessage(text, sources) {
             const c = document.getElementById('chatMessages');
             const d = document.createElement('div'); d.className = 'cy-msg bot';
-            let h = '<div class="cy-avatar"><img src="/static/sml.png" alt="EthosAI"></div><div><div class="cy-bubble">' + esc(text) + '</div>';
+            let h = '<div class="cy-avatar"><img src="/static/sml.png" alt="NXSS AI"></div><div><div class="cy-bubble">' + esc(text) + '</div>';
             if (sources && sources.length) {
                 const names = sources.map(s => s.document_name || s.filename || (typeof s === 'string' ? s : ''));
                 h += '<div class="cy-sources">Sources: ' + names.filter(Boolean).join(', ') + '</div>';
@@ -330,7 +330,7 @@ To get started, just type your question below. You'll be asked to log in when yo
         function showTyping() {
             const c = document.getElementById('chatMessages');
             const d = document.createElement('div'); d.className = 'cy-msg bot'; d.id = 'typingIndicator';
-            d.innerHTML = '<div class="cy-avatar"><img src="/static/sml.png" alt="EthosAI"></div><div class="cy-typing"><span></span><span></span><span></span></div>';
+            d.innerHTML = '<div class="cy-avatar"><img src="/static/sml.png" alt="NXSS AI"></div><div class="cy-typing"><span></span><span></span><span></span></div>';
             c.appendChild(d); c.scrollTop = c.scrollHeight; document.getElementById('sendBtn').disabled = true;
         }
         function hideTyping() { const e = document.getElementById('typingIndicator'); if (e) e.remove(); document.getElementById('sendBtn').disabled = false; }

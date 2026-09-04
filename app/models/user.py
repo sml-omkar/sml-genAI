@@ -46,7 +46,7 @@ class User(Base):
     role = Column(Enum(RoleType), nullable=False, default=RoleType.USER)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    # EthosAI chatbot access control (admin managed)
+    # NXSS AI chatbot access control (admin managed)
     # chat_access_enabled: master switch to allow/deny the user's bot usage
     # daily_token_limit: max total tokens the user may consume per rolling calendar
     #   day (0 = unlimited). When an admin sets 0 the user has no cap.

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EthosAI — Login</title>
+    <title>NXSS AI — Login</title>
     <link rel="icon" type="image/png" href="/static/sml.png">
     <link rel="apple-touch-icon" href="/static/sml.png">
     <link rel="stylesheet" href="/static/style.css">
@@ -127,7 +127,7 @@
     <div class="login-container">
         <div class="login-card">
             <div class="login-titlebar">
-                <span>EthosAI — Log On</span>
+                <span>NXSS AI — Log On</span>
                 <div>
                     <span style="cursor:pointer">_</span>
                     <span style="cursor:pointer;margin-left:4px">□</span>
@@ -135,7 +135,7 @@
             </div>
             <div class="login-body">
                 <div class="login-logo"><img src="/static/sml.png" alt="SML Logo"></div>
-                <h1 class="login-title">EthosAI Bot</h1>
+                <h1 class="login-title">NXSS AI Bot</h1>
                 <p class="login-subtitle">Enter your credentials to access the admin panel</p>
 
                 <form id="loginForm" onsubmit="return handleLogin(event)">
@@ -152,7 +152,7 @@
                 </form>
 
                 <div class="login-info">
-                    <strong>Employees:</strong> Chat with EthosAI directly in Microsoft Teams.<br>
+                    <strong>Employees:</strong> Chat with NXSS AI directly in Microsoft Teams.<br>
                     This portal is for administrators only.
                 </div>
             </div>
@@ -200,7 +200,7 @@
                 if (role === 'super_admin' || role === 'dept_admin') {
                     window.location.href = '/admin/dashboard';
                 } else {
-                    err.textContent = 'Regular users should use EthosAI in Microsoft Teams.';
+                    err.textContent = 'Regular users should use NXSS AI in Microsoft Teams.';
                     err.style.display = 'block';
                 }
             } catch (e) {

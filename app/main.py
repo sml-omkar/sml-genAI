@@ -1,5 +1,5 @@
 """
-AI-Bot FastAPI Application
+NXSS AI FastAPI Application
 Entry point — mounts all routes, initializes database, serves admin portal.
 """
 
@@ -237,12 +237,12 @@ async def admin_broadcast_page(request: Request):
 
 
 # =============================================================================
-# PUBLIC ROUTES — EthosAI Chatbot (no auth required)
+# PUBLIC ROUTES — NXSS AI Chatbot (no auth required)
 # =============================================================================
 
 @app.get("/", response_class=HTMLResponse)
-async def ethos_chatbot(request: Request):
-    """Public EthosAI chatbot — everyone sees this first."""
+async def nxss_chatbot(request: Request):
+    """Public NXSS AI chatbot — everyone sees this first."""
     return templates.TemplateResponse("chat.html", {"request": request})
 
 
@@ -352,7 +352,7 @@ async def chat_endpoint(request: ChatMessage, db: AsyncSession = Depends(get_db)
     if not db_user:
         raise HTTPException(
             status_code=403,
-            detail="Your account is not registered with EthosAI.",
+            detail="Your account is not registered with NXSS AI.",
         )
 
     # Admin-managed access control + daily token limit enforcement

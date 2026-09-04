@@ -1,5 +1,5 @@
 <<<<<<< HEAD
-# AI-Bot — Enterprise Teams Chatbot with RAG Pipeline
+# NXSS AI — Enterprise Teams Chatbot with RAG Pipeline
 
 A production-ready Microsoft Teams chatbot that answers employee questions from uploaded PDF policy documents. Built with Python FastAPI, Ollama (llama3.2:1b), ChromaDB, and PostgreSQL.
 
@@ -109,7 +109,7 @@ Create `.env` file in the project root:
 ```bash
 cat > .env << 'EOF'
 # Application
-APP_NAME=AI-Bot
+APP_NAME=NXSS AI
 APP_HOST=0.0.0.0
 APP_PORT=8000
 DEBUG=false

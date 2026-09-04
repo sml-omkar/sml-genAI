@@ -1,4 +1,4 @@
-"""Generate Microsoft Teams app icons for EthosAI.
+"""Generate Microsoft Teams app icons for NXSS AI.
 
 Creates:
   color.png   192x192  (filled, transparent background)
