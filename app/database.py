@@ -79,53 +79,43 @@ async def init_db():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migration: add 'understanding' to the processingstatus enum
-        # (enum labels are stored UPPERCASE; no-op if already present)
-        await conn.execute(text(
-            "ALTER TYPE processingstatus ADD VALUE IF NOT EXISTS 'UNDERSTANDING'"
-        ))
-        # Migration: add token-usage columns to messages (no-op if already present)
-        await conn.execute(text(
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tokens_in INTEGER DEFAULT 0"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tokens_out INTEGER DEFAULT 0"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS model_used VARCHAR(100)"
-        ))
-        # Migration: per-user chatbot access control columns (no-op if present)
-        await conn.execute(text(
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_access_enabled BOOLEAN NOT NULL DEFAULT TRUE"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_token_limit INTEGER NOT NULL DEFAULT 0"
-        ))
-        # Migration: Teams identity tracking on conversations (no-op if present)
-        await conn.execute(text(
-            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS source VARCHAR(20)"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_aad_id VARCHAR(255)"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_email VARCHAR(255)"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_name VARCHAR(255)"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_channel_id VARCHAR(500)"
-        ))
-        # Indexes for the new columns (IF NOT EXISTS is PG 9.5+, safe to try)
+
+    # --- Migrations: each in its own transaction so one failure doesn't abort others ---
+    # Using separate engine.begin() per statement prevents InFailedSQLTransactionError
+    _migrations = [
+        "ALTER TYPE processingstatus ADD VALUE IF NOT EXISTS 'UNDERSTANDING'",
+        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tokens_in INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS tokens_out INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS model_used VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_access_enabled BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_token_limit INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS source VARCHAR(20)",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_aad_id VARCHAR(255)",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_email VARCHAR(255)",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_name VARCHAR(255)",
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS teams_channel_id VARCHAR(500)",
+        # Must add external_api_id BEFORE creating its index
+        "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_api_id UUID",
+    ]
+    for sql in _migrations:
         try:
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source)"))
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_teams_aad ON conversations(teams_aad_id)"))
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_conversations_external_api ON conversations(external_api_id)"))
-        except Exception:
-            pass
-        # Migration: external folder-scoped APIs (conversations.external_api_id already handled above via create_all)
-        await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS external_api_id UUID"))
+            async with engine.begin() as c:
+                await c.execute(text(sql))
+        except Exception as e:
+            # IF NOT EXISTS makes most idempotent, but log anyway for visibility
+            print(f"[DB] Migration note (likely already applied): {sql[:70]} -> {e}")
+
+    _indexes = [
+        "CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source)",
+        "CREATE INDEX IF NOT EXISTS idx_conversations_teams_aad ON conversations(teams_aad_id)",
+        "CREATE INDEX IF NOT EXISTS idx_conversations_external_api ON conversations(external_api_id)",
+    ]
+    for sql in _indexes:
+        try:
+            async with engine.begin() as c:
+                await c.execute(text(sql))
+        except Exception as e:
+            print(f"[DB] Index note: {sql[:70]} -> {e}")
 
     # Seed default departments if none exist
     from sqlalchemy import select, func
